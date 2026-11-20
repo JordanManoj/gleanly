@@ -16,8 +16,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from PIL import Image
 
-# Text-line height (pixels, ascender to descender) that Tesseract reads most reliably.
-TARGET_LINE_PX = 32
+# Text-line height (pixels, as measured by line_height) that Tesseract reads best.
+TARGET_LINE_PX = 26  # chosen on bench.ocr dev: 18, 22, 32 were worse
 MIN_SCALE, MAX_SCALE = 0.25, 3.0
 
 
@@ -42,23 +42,37 @@ def flatten_background(gray: Image.Image) -> Image.Image:
     return ImageOps.autocontrast(flat, cutoff=(1, 0))
 
 
-def line_height(gray: Image.Image) -> float | None:
-    """Median height of runs of rows that contain ink (one run ~ one text line)."""
-    width = min(gray.width, 1200)
-    small = gray.resize((width, gray.height))
-    rows = list(small.resize((1, gray.height)).tobytes())  # mean brightness per row
-    paper = statistics.median(rows) if rows else 255
-    inked = [v < paper - 4 for v in rows]
+STRIPS = 6  # narrow vertical strips used to measure line height
+
+
+def _runs(column: list[int]) -> list[int]:
+    """Lengths of runs of rows that contain ink in one strip's row profile."""
+    paper = statistics.median(column) if column else 255
     runs, n = [], 0
-    for flag in inked:
-        if flag:
+    for v in column:
+        if v < paper - 4:
             n += 1
         elif n:
             runs.append(n)
             n = 0
     if n:
         runs.append(n)
-    runs = [r for r in runs if r >= 3]
+    return [r for r in runs if r >= 3]
+
+
+def line_height(gray: Image.Image) -> float | None:
+    """Typical text-line height: median height of inked row runs in narrow strips.
+
+    Measured in several narrow vertical strips rather than across the full width: on a
+    tilted page, a line spans many rows over the full width and neighbouring lines merge,
+    but over a narrow strip a few degrees of skew barely move it.
+    """
+    strip_w = max(8, min(gray.width // (2 * STRIPS), 160))
+    runs: list[int] = []
+    for i in range(STRIPS):
+        x0 = round((i + 0.5) * gray.width / STRIPS - strip_w / 2)
+        strip = gray.crop((x0, 0, x0 + strip_w, gray.height))
+        runs += _runs(list(strip.resize((1, gray.height)).tobytes()))  # mean per row
     return float(statistics.median(runs)) if runs else None
 
 

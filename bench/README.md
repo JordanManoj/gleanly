@@ -243,3 +243,47 @@ Dev macro F1 stays 0.900. The headline fix moves Scrapinghub 0.963 -> 0.956 and 
 0.937 -> 0.936 only because those two answer keys omit headlines (headline found in the key
 on 0/84 and 3/31 affected pages, against 82-97% on the other six datasets, which go up).
 Kept, because users expect the title in the text.
+
+## OCR (`bench/ocr.py`, 2026-11-20)
+
+`uv run python -m bench.ocr --split test`
+
+Pages rendered from our own text (a fixed English word list, numbers, names,
+punctuation) in 5 fonts, then degraded 8 ways: clean 300 dpi, fax 100 dpi, blur, noise,
+3 degree skew, JPEG quality 10, faint print with a shadow, and a "phone photo" (tilt, blur,
+shadow, JPEG). 9 texts: every third is held out (120 test images, 240 dev). Exact ground
+truth, no third-party data. Metric: character / word error rate (CER / WER).
+
+Held-out test split, plain Tesseract 5.5 vs gleanly's OCR:
+
+| condition | plain Tesseract | gleanly |
+| --- | --- | --- |
+| clean 300 dpi | 2.28% | **0.00%** |
+| fax 100 dpi | **0.08%** | 1.19% |
+| blur | 6.29% | **4.18%** |
+| noise | **0.07%** | 0.25% |
+| skew 3 deg | **0.14%** | 0.17% |
+| JPEG q10 | **0.02%** | 0.06% |
+| faint print + shadow | 58.5% | **0.08%** |
+| phone photo | 61.4% | **0.22%** |
+| **mean CER** | 16.1% | **0.77%** |
+| **mean WER** | 16.9% | **1.13%** |
+| images under 1% CER | 71% | **96%** |
+| time per image (4 in parallel) | 287 ms | 445 ms |
+
+What changed (each step measured on dev before keeping it):
+
+1. **Background flattening** (max filter + blur estimates the paper, which is subtracted):
+   dev mean CER 16.6% -> 2.3%. Fixes shadows and faint print, Tesseract's worst cases.
+2. **Text-size normalisation** to ~26 px lines, measured in narrow vertical strips:
+   2.3% -> 1.4%. Wide fonts at 300 dpi no longer get split into fake columns. A first
+   version measured across the full width and broke skewed pages (lines merge), hence the
+   strips. Targets 18/22/32 px were worse.
+
+Tried and dropped: a **layout self-check** (re-read as one column when lines come out
+fragmented). It fixed the split-column pages but misfired on skewed pages and photos
+(dev 1.4% -> 1.7%), and step 2 already fixes those pages.
+
+Known costs: fax-quality text is upscaled about 2.4x, which costs ~1% CER there; and OCR
+confidence ranks pages a little less sharply (Spearman with 1-CER 0.52 -> 0.39) because
+far fewer pages fail. Blur is the largest remaining error (4.2%).
