@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Understanding Tide Pools</title>
+  <meta name="description" content="A field guide to the ecology of rocky intertidal zones.">
+  <meta name="author" content="Field Notes Staff">
+  <meta property="og:site_name" content="Field Notes">
+  <meta property="article:published_time" content="2025-03-14T09:00:00Z">
+  <link rel="canonical" href="/guides/tide-pools">
+  <link rel="license" href="https://creativecommons.org/licenses/by/4.0/">
+  <script type="application/ld+json">
+  {"@context": "https://schema.org", "@type": "Article", "headline": "Understanding Tide Pools",
+   "author": {"@type": "Person", "name": "Field Notes Staff"}, "datePublished": "2025-03-14"}
+  </script>
+</head>
+<body>
+  <header class="masthead"><a href="/">Field Notes</a></header>
+  <nav class="navbar"><ul><li><a href="/">Home</a></li><li><a href="/guides">Guides</a></li><li><a href="/about">About</a></li></ul></nav>
+  <div class="cookie-banner">We use cookies to improve your experience. Accept all cookies?</div>
+  <main>
+    <article>
+      <h1>Understanding Tide Pools</h1>
+      <p>Tide pools are rocky depressions along the shore that hold seawater when the tide goes out. They host a surprising diversity of life, from anemones and sea stars to tiny crabs that shelter beneath stones.</p>
+      <h2>Zones of the shore</h2>
+      <p>Ecologists divide the rocky shore into several zones. Each zone is exposed to air for a different share of the day, and the organisms living there are adapted to that rhythm of exposure and submersion.</p>
+      <ul>
+        <li>The <strong>spray zone</strong> is wetted only by waves.</li>
+        <li>The <em>high intertidal</em> zone is submerged at high tide.</li>
+        <li>The low intertidal zone is exposed only during the lowest tides.</li>
+      </ul>
+      <h2>Measured temperatures</h2>
+      <table>
+        <thead><tr><th>Zone</th><th>Max temp (C)</th></tr></thead>
+        <tbody><tr><td>Spray</td><td>34</td></tr><tr><td>Low</td><td>19</td></tr></tbody>
+      </table>
+      <p>Researchers log temperatures with small waterproof sensors. The analysis script below converts raw readings into daily maxima, which makes it easy to compare zones across seasons and years.</p>
+      <pre><code class="language-python">def daily_max(readings):
+    return max(readings)
+</code></pre>
+      <blockquote><p>Every tide pool is a world in miniature.</p></blockquote>
+      <p>Read more in our <a href="/guides/rocky-shores">guide to rocky shores</a>, and please leave the animals where you found them so the next visitor can enjoy them too.</p>
+    </article>
+  </main>
+  <aside class="sidebar"><h3>Related</h3><a href="/a">Another article</a></aside>
+  <footer class="footer">Contact us at editors@example.org. Copyright 2025 Field Notes.</footer>
+</body>
+</html>

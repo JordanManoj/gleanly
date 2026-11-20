@@ -1,0 +1,89 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gleanly"
+dynamic = ["version"]
+description = "All-in-one text acquisition for AI: scraping, OCR and search with trust scores, compliance metadata and provenance."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "gleanly contributors" }]
+keywords = ["scraping", "markdown", "rag", "llm", "ocr", "search", "provenance", "compliance"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+    "Topic :: Text Processing :: Markup :: HTML",
+    "Typing :: Typed",
+]
+# Core stays light. Every dependency's license is recorded in docs/dependencies.md.
+dependencies = [
+    "httpx>=0.27",
+    "pydantic>=2.7",
+    "lxml>=5.2",
+    "protego>=0.3",
+]
+
+[project.optional-dependencies]
+# Rung 3 of the fetch ladder. After installing run: playwright install chromium
+browser = ["playwright>=1.45"]
+# ocr, search and llm extras arrive with their phases (see docs/roadmap.md).
+
+[project.scripts]
+gleanly = "gleanly.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/JordanManoj/gleanly"
+Issues = "https://github.com/JordanManoj/gleanly/issues"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "respx>=0.21",
+    "ruff>=0.6",
+    "pyright>=1.1.380",
+]
+# Baseline extractors for bench/ only. Never shipped with the package.
+bench = [
+    "trafilatura>=2.0",
+    "readability-lxml>=0.8",
+]
+
+[tool.hatch.version]
+path = "src/gleanly/__about__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gleanly"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "C4", "PT"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["gleanly", "bench"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-ra"
+
+[tool.pyright]
+include = ["src"]
+pythonVersion = "3.10"
+typeCheckingMode = "standard"
