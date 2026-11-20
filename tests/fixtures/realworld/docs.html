@@ -1,0 +1,69 @@
+<!doctype html>
+<!-- Original content for gleanly's tests. Markup modelled on a documentation generator:
+     version switcher, sidebar tree, on-page TOC, admonitions, tabs-free code, prev/next. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Configuring retries — tidekeeper 2.4 documentation</title>
+  <link rel="canonical" href="https://docs.tidekeeper.example/2.4/guide/retries/">
+</head>
+<body>
+  <div class="md-header" role="banner">
+    <a class="md-logo" href="/">tidekeeper</a>
+    <div class="version-select"><select><option>2.4</option><option>2.3</option></select></div>
+    <form class="md-search" role="search"><input type="text" placeholder="Search"></form>
+  </div>
+  <div class="md-container">
+    <nav class="md-sidebar md-sidebar--primary" aria-label="Navigation">
+      <ul>
+        <li><a href="../install/">Installation</a></li>
+        <li><a href="../quickstart/">Quickstart</a></li>
+        <li class="active"><a href="./">Configuring retries</a></li>
+        <li><a href="../timeouts/">Timeouts</a></li>
+        <li><a href="../api/">API reference</a></li>
+      </ul>
+    </nav>
+    <div class="md-content" role="main">
+      <article class="md-content__inner md-typeset">
+        <a class="md-content__button" href="https://git.example/edit/retries.md" title="Edit this page">Edit</a>
+        <h1 id="configuring-retries">Configuring retries</h1>
+        <p>tidekeeper retries failed requests automatically. This page explains which failures
+        are retried, how the delay between attempts grows, and how to change both.</p>
+        <div class="admonition note">
+          <p class="admonition-title">Note</p>
+          <p>Retries only apply to idempotent methods (GET, HEAD, PUT, DELETE) unless you opt
+          in with <code>retry_unsafe=True</code>.</p>
+        </div>
+        <h2 id="defaults">Defaults</h2>
+        <p>Out of the box, a request is attempted up to three times. The delay doubles after
+        each failure, starting at half a second.</p>
+        <table>
+          <thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>max_attempts</code></td><td>3</td><td>Total tries, including the first</td></tr>
+            <tr><td><code>backoff</code></td><td>0.5</td><td>First delay in seconds</td></tr>
+            <tr><td><code>retry_on</code></td><td>502, 503, 504</td><td>Status codes that trigger a retry</td></tr>
+          </tbody>
+        </table>
+        <h2 id="custom-policy">Writing a custom policy</h2>
+        <p>Pass a <code>RetryPolicy</code> to the client to override the defaults:</p>
+        <pre><code class="language-python">from tidekeeper import Client, RetryPolicy
+
+policy = RetryPolicy(max_attempts=5, backoff=1.0, retry_on={429, 503})
+client = Client(retry=policy)
+</code></pre>
+        <p>Delays are capped at 30 seconds, so a long run of failures never stalls a worker
+        for more than half a minute between attempts.</p>
+      </article>
+      <nav class="md-footer__inner" aria-label="Footer">
+        <a href="../quickstart/" class="md-footer__link--prev">Previous: Quickstart</a>
+        <a href="../timeouts/" class="md-footer__link--next">Next: Timeouts</a>
+      </nav>
+    </div>
+    <nav class="md-sidebar md-sidebar--secondary" aria-label="Table of contents">
+      <ul><li><a href="#defaults">Defaults</a></li><li><a href="#custom-policy">Writing a custom policy</a></li></ul>
+    </nav>
+  </div>
+  <footer class="md-footer"><p>Copyright 2025 the tidekeeper authors. Built with a static site generator.</p></footer>
+</body>
+</html>

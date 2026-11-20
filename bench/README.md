@@ -228,3 +228,18 @@ captures better (0.936). The datasets where gleanly leaks boilerplate (L3S, Clea
 one page per site, so template learning cannot be measured there. Revisit with a dataset
 of modern multi-page sites with precision failures.
 
+
+## Real-world regression pages (2026-11-20)
+
+`tests/test_realworld.py` runs four original pages that copy common layouts (news CMS,
+docs generator, WordPress with comments, hosted shop) against stored Markdown. They exposed
+three bugs the benchmarks did not, all fixed:
+
+- the `<h1>` headline sitting just outside the article-body container was dropped;
+- a lone "Edit" link at the edge of a docs page leaked in;
+- WordPress `entry-meta` ("Posted on ...") was not treated as byline furniture.
+
+Dev macro F1 stays 0.900. The headline fix moves Scrapinghub 0.963 -> 0.956 and Readability
+0.937 -> 0.936 only because those two answer keys omit headlines (headline found in the key
+on 0/84 and 3/31 affected pages, against 82-97% on the other six datasets, which go up).
+Kept, because users expect the title in the text.

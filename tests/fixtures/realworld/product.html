@@ -1,0 +1,53 @@
+<!doctype html>
+<!-- Original content for gleanly's tests. Markup modelled on a hosted-shop product page:
+     announcement bar, mega-menu, gallery, price/variant form, description, reviews, recommendations. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Field Thermos 750 ml – Northpine Outfitters</title>
+  <meta name="description" content="Double-walled steel bottle that keeps drinks hot for 18 hours.">
+  <script type="application/ld+json">
+  {"@context": "https://schema.org", "@type": "Product", "name": "Field Thermos 750 ml",
+   "brand": {"@type": "Brand", "name": "Northpine"},
+   "offers": {"@type": "Offer", "price": "34.00", "priceCurrency": "EUR", "availability": "https://schema.org/InStock"}}
+  </script>
+</head>
+<body class="template-product">
+  <div class="announcement-bar"><p>Free shipping on orders over 50 euros</p></div>
+  <header class="header"><a href="/" class="header__logo">Northpine Outfitters</a>
+    <nav class="header__menu"><ul><li><a href="/c/camp">Camp</a></li><li><a href="/c/hike">Hike</a></li><li><a href="/c/sale">Sale</a></li></ul></nav>
+    <a href="/cart" class="header__cart">Cart (0)</a></header>
+  <main id="MainContent" class="content-for-layout">
+    <section class="product">
+      <div class="product__media"><img src="/img/thermos.jpg" alt="Field Thermos in forest green"></div>
+      <div class="product__info">
+        <h1 class="product__title">Field Thermos 750 ml</h1>
+        <div class="price"><span class="price-item">€34,00</span></div>
+        <form class="product-form"><label>Colour</label><select><option>Forest green</option><option>Slate</option></select>
+          <button type="submit">Add to cart</button></form>
+        <div class="product__description rte">
+          <p>A double-walled steel bottle built for cold mornings. Coffee poured at dawn is
+          still hot at the end of an eighteen-hour day, and water stays cold for a full
+          day in summer.</p>
+          <ul>
+            <li>Capacity: 750 ml</li>
+            <li>Weight: 410 g</li>
+            <li>Lid doubles as a 200 ml cup</li>
+            <li>Dishwasher safe, except the lid seal</li>
+          </ul>
+          <p>Each bottle is pressure-tested before it leaves the workshop and comes with a
+          five-year guarantee against leaks.</p>
+        </div>
+      </div>
+    </section>
+    <section class="product-reviews" id="reviews">
+      <h2>Customer reviews</h2>
+      <div class="review"><p class="review__title">Still warm at the summit</p>
+        <p class="review__body">Took it up a 2,000 metre climb in October and the tea was still hot at the top six hours later.</p></div>
+    </section>
+    <section class="product-recommendations"><h2>You may also like</h2>
+      <ul><li><a href="/p/mug">Camp Mug – €18,00</a></li><li><a href="/p/flask">Hip Flask – €22,00</a></li></ul></section>
+  </main>
+  <footer class="footer"><p>© 2025 Northpine Outfitters</p><a href="/returns">Returns</a> <a href="/shipping">Shipping</a></footer>
+</body>
+</html>

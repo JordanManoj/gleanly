@@ -65,7 +65,10 @@ SUBSTANTIAL_TEXT = 500
 # How far up from the best block to look for repeated copies of it (split articles).
 LOOKALIKE_LEVELS = 3
 CAPTION_WORDS = {"caption", "credit", "credits"}
-BYLINE_WORDS = {"byline", "dateline", "timestamp", "tags", "author", "date"}
+BYLINE_WORDS = {"byline", "dateline", "timestamp", "tags", "author", "date", "meta", "posted"}
+# A lone link at the very start or end of the content ("Edit", "Back to top") is furniture.
+LONE_LINK = re.compile(r"\[[^\]]{1,30}\]\([^)]*\)")
+LONE_LINK_WORDS = 3
 # Forms with less text than this are search boxes, logins or sign-ups.
 FORM_TEXT = 500
 
@@ -170,6 +173,8 @@ class HtmlExtractor:
         container = self._choose_container(body)
         self._container = container
         self._flow(container)
+        self._drop_edge_links()
+        self._add_title(body, container)
         if include_comments:
             from gleanly.clean.comments import comment_blocks, comment_sections
 
@@ -180,6 +185,43 @@ class HtmlExtractor:
             self.blocks += comment_blocks(comment_sections(body, container, extracted))
         page_chars = len(_norm(self._visible_text(body, skip=False)).strip())
         return Extraction(self.blocks, method, link_chars=self.link_chars, page_chars=page_chars)
+
+    def _drop_edge_links(self) -> None:
+        """Remove "Edit this page" / "Back to top" style links at the edges of the content."""
+        for idx in (-1, 0):
+            if not self.blocks:
+                return
+            b = self.blocks[idx]
+            text = b.text.strip()
+            if (
+                b.type == BlockType.PARAGRAPH
+                and LONE_LINK.fullmatch(text)
+                and len(markdown_to_plain(text).split()) <= LONE_LINK_WORDS
+            ):
+                del self.blocks[idx]
+
+    def _add_title(self, body: HtmlElement, container: HtmlElement) -> None:
+        """Many CMSs put the <h1> headline just outside the article-body container."""
+        if any(b.type == BlockType.HEADING and b.level == 1 for b in self.blocks):
+            return
+        h1s = [h for h in body.iter("h1") if not self._skipped_or_under_skipped(h, body)]
+        if len(h1s) != 1:
+            return
+        h1 = h1s[0]
+        if h1 is container or any(a is h1 for a in container.iterancestors()):
+            return
+        if any(a is container for a in h1.iterancestors()):
+            return  # inside the container but dropped on purpose
+        for el in body.iter():  # only a headline that comes before the content
+            if el is container:
+                break
+            if el is h1:
+                text = markdown_to_plain(self._inline_children(h1))
+                if text:
+                    self.blocks.insert(
+                        0, RawBlock(BlockType.HEADING, f"# {text}", self._path(h1), 1, self.kind)
+                    )
+                return
 
     # --------------------------------------------------------------- skipping
     def _is_skipped(self, el: HtmlElement) -> bool:

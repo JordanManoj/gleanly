@@ -19,7 +19,7 @@ from collections.abc import Callable
 from lxml.html import HtmlElement
 
 from gleanly.clean.blocks import labels, segments
-from gleanly.clean.html import SKIP_TAGS, Extraction, RawBlock, _is_element
+from gleanly.clean.html import HEADINGS, SKIP_TAGS, Extraction, RawBlock, _is_element
 from gleanly.models import BlockType
 
 COMMENT_WORDS = {"comment", "comments", "commentlist", "disqus", "discussion", "replies"}
@@ -72,9 +72,13 @@ def comment_blocks(sections: list[HtmlElement]) -> list[RawBlock]:
         for seg, label in zip(segs, labels(segs), strict=True):
             if label not in KEEP_LABELS:
                 continue
-            out.append(
-                RawBlock(BlockType.PARAGRAPH, seg.text, tree.getpath(seg.el), role="comment")
-            )
+            path = tree.getpath(seg.el)
+            if seg.el.tag in HEADINGS:  # "2 thoughts on ...": keep the section's structure
+                level = int(seg.el.tag[1])
+                text = f"{'#' * level} {seg.text}"
+                out.append(RawBlock(BlockType.HEADING, text, path, level, role="comment"))
+            else:
+                out.append(RawBlock(BlockType.PARAGRAPH, seg.text, path, role="comment"))
     return out
 
 
