@@ -13,7 +13,7 @@
 | HTML → Markdown: headings, lists, tables, code (with language), quotes, links | done | |
 | Block-level provenance: XPath + char span (+ JSON path for embedded data) | done | |
 | Metadata: title, description, language, canonical, author, dates, JSON-LD | done | |
-| ComplianceInfo v0: robots, AI-crawler opt-outs, TDMRep, `noai`, license, PII | done | `ai.txt` not yet |
+| ComplianceInfo v0: robots, AI-crawler opt-outs, TDMRep, `ai.txt`, `noai`, license, PII | done | ai.txt: file-type rules match pages by content type; HTML "not found" pages ignored |
 | QualityReport v0 + score | done | Heuristic, uncalibrated |
 | Extraction benchmark (`bench/`) with dev/test split + baselines | done | F1 0.958 on 181 pages |
 | Optional reader comments (`include_comments`, `--comments`, `Block.role`) | done | Held-out Dragnet 0.901 / CETD 0.934, both above trafilatura |
@@ -26,7 +26,6 @@
 
 - Register the `gleanly` name on PyPI (first release) and create the GitHub repository.
 - Set the real project URL in `config.PROJECT_URL` (it goes into the User-Agent).
-- `ai.txt` support in compliance.
 - A small real-world HTML fixture set for regression tests of the extractor.
 
 ## Later phases

@@ -23,6 +23,7 @@ class LoadOptions(BaseModel):
     timeout: float = Field(default=20.0, gt=0, description="Per-request timeout in seconds.")
     respect_robots: bool = True
     check_tdmrep: bool = True
+    check_ai_txt: bool = Field(default=True, description="Fetch and apply the site's /ai.txt.")
     browser: Literal["auto", "never", "always"] = Field(
         default="auto",
         description="auto: render with Playwright only when the page looks JS-rendered and "

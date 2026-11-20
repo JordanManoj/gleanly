@@ -17,7 +17,7 @@ from gleanly.clean.blocks import rescue
 from gleanly.clean.comments import with_comments
 from gleanly.clean.html import Extraction, RawBlock, extract_html, markdown_to_plain, parse_html
 from gleanly.clean.metadata import extract_metadata, iter_json_ld
-from gleanly.compliance import tdmrep
+from gleanly.compliance import aitxt, tdmrep
 from gleanly.compliance.assess import assess, detect_noai
 from gleanly.compliance.license import detect_license
 from gleanly.compliance.pii import detect_pii
@@ -123,6 +123,7 @@ class Client:
         self._http = http_client or build_client(opts)
         self._robots = RobotsCache(self._http, token=opts.robots_token)
         self._tdm = tdmrep.TdmRepCache(self._http)
+        self._aitxt = aitxt.AiTxtCache(self._http)
         self._limiter = DomainRateLimiter(opts.min_delay)
 
     async def aclose(self) -> None:
@@ -211,11 +212,12 @@ class Client:
     # ------------------------------------------------------------------- web
     async def _check_origin(
         self, url: str, trace: FetchTrace
-    ) -> tuple[RobotsVerdict, tdmrep.TdmSignal | None]:
+    ) -> tuple[RobotsVerdict, tdmrep.TdmSignal | None, aitxt.AiTxt | None]:
         o = self.options
-        robots, tdm_wk = await asyncio.gather(
+        robots, tdm_wk, ai_file = await asyncio.gather(
             self._robots.check(url),
             self._tdm.lookup(url) if o.check_tdmrep else _none(),
+            self._aitxt.get(url) if o.check_ai_txt else _none(),
         )
         trace.steps.append(
             FetchStep(
@@ -234,6 +236,15 @@ class Client:
                     detail=tdm_wk.describe() if tdm_wk else "no matching TDMRep rule",
                 )
             )
+        if o.check_ai_txt:
+            trace.steps.append(
+                FetchStep(
+                    rung="ai.txt",
+                    url=f"{origin_of(url)}/ai.txt",
+                    ok=True,
+                    detail="found" if ai_file else "no ai.txt",
+                )
+            )
         if robots.allowed is False and o.respect_robots:
             reason = (
                 f"robots.txt does not allow '{o.robots_token}' to fetch {url} "
@@ -241,12 +252,12 @@ class Client:
             )
             trace.failure_reason = reason
             raise RobotsDisallowed(reason, url=url, trace=trace)
-        return robots, tdm_wk
+        return robots, tdm_wk, ai_file
 
     async def _load_url(self, url: str, source: str) -> Document:
         o = self.options
         trace = FetchTrace()
-        robots, tdm_wk = await self._check_origin(url, trace)
+        robots, tdm_wk, ai_file = await self._check_origin(url, trace)
         host = urlsplit(url).netloc.lower()
 
         # Rung 1: plain HTTP
@@ -276,13 +287,14 @@ class Client:
             trace.failure_reason = reason
             raise FetchError(reason, url=url, trace=trace)
         if origin_of(resp.url) != origin_of(url):  # redirected to another site
-            robots, tdm_wk = await self._check_origin(resp.url, trace)
+            robots, tdm_wk, ai_file = await self._check_origin(resp.url, trace)
 
         ctype = resp.content_type
         if ctype == "application/pdf" or ctype.startswith("image/"):
             raise UnsupportedSourceError(f"{ctype} content arrives in Phase 2 (PDF/OCR).")
         text = resp.text()
         tdm_signals = [s for s in (tdm_wk, tdmrep.from_headers(resp.headers)) if s]
+        ai_txt = ai_file.verdict(resp.url, ctype, o.robots_token) if ai_file else None
 
         if ctype in _TEXT_TYPES or (ctype not in _HTML_TYPES and ctype.startswith("text/")):
             extraction = Extraction(_text_blocks(text, "markdown" in ctype), "http")
@@ -296,6 +308,7 @@ class Client:
                 raw_size=len(resp.content),
                 robots=robots,
                 tdm_signals=tdm_signals,
+                ai_txt=ai_txt,
                 noai=detect_noai(resp.headers, None),
                 license_info=None,
                 truncated=resp.truncated,
@@ -377,6 +390,7 @@ class Client:
             raw_size=len(resp.content),
             robots=robots,
             tdm_signals=tdm_signals,
+            ai_txt=ai_txt,
             noai=detect_noai(resp.headers, final_root),
             license_info=detect_license(final_root, json_ld, resp.url),
             truncated=resp.truncated,
@@ -433,6 +447,7 @@ class Client:
         robots: RobotsVerdict | None,
         tdm_signals: list[tdmrep.TdmSignal],
         noai: list[str],
+        ai_txt: aitxt.AiTxtVerdict | None = None,
         license_info: Any,
         check_root: HtmlElement | None = None,
         local: bool = False,
@@ -448,6 +463,7 @@ class Client:
             robots=robots,
             respect_robots=self.options.respect_robots,
             tdm_signals=tdm_signals,
+            ai_txt=ai_txt,
             noai_evidence=noai,
             license_info=license_info,
             pii_types=detect_pii(plain),

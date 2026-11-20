@@ -1,4 +1,4 @@
-"""Compliance metadata: robots, TDMRep, noai, license detection, PII flags."""
+"""Compliance metadata: robots, TDMRep, ai.txt, noai, license detection, PII flags."""
 
 from gleanly.compliance.assess import assess, detect_noai
 from gleanly.compliance.license import detect_license, is_permissive, license_from_url

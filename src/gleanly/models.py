@@ -148,6 +148,11 @@ class ComplianceInfo(_Model):
         default=None, description="TDMRep text-and-data-mining reservation (None = no signal)."
     )
     tdm_policy: str | None = None
+    ai_txt_allowed: bool | None = Field(
+        default=None,
+        description="What the site's /ai.txt says about AI use of this content "
+        "(None = no ai.txt or no matching rule).",
+    )
     noai: bool = Field(default=False, description="A 'noai' robots directive was found.")
     license: str | None = Field(default=None, description="Detected license, SPDX-like id.")
     license_url: str | None = None
@@ -158,7 +163,7 @@ class ComplianceInfo(_Model):
 
 
 class FetchStep(_Model):
-    rung: str = Field(description="robots | tdmrep | http | embedded | browser | file")
+    rung: str = Field(description="robots | tdmrep | ai.txt | http | embedded | browser | file")
     url: str | None = None
     ok: bool
     status_code: int | None = None

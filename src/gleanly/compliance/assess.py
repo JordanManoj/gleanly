@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from lxml.html import HtmlElement
 
+from gleanly.compliance.aitxt import AiTxtVerdict
 from gleanly.compliance.license import LicenseInfo, is_permissive
 from gleanly.compliance.tdmrep import TdmSignal, most_specific
 from gleanly.fetch.robots import RobotsVerdict
@@ -30,6 +31,7 @@ def assess(
     robots: RobotsVerdict | None,
     respect_robots: bool = True,
     tdm_signals: list[TdmSignal] | None = None,
+    ai_txt: AiTxtVerdict | None = None,
     noai_evidence: list[str] | None = None,
     license_info: LicenseInfo | None = None,
     pii_types: list[str] | None = None,
@@ -60,6 +62,13 @@ def assess(
         negative.append("TDM rights are reserved (TDMRep)")
     elif tdm is not None and tdm.reserved is False:
         positive.append("TDMRep explicitly does not reserve TDM rights")
+
+    if ai_txt is not None:
+        evidence.append(ai_txt.describe())
+        if ai_txt.allowed is False:
+            negative.append("ai.txt disallows AI use of this content")
+        elif ai_txt.allowed is True:
+            positive.append("ai.txt explicitly allows AI use of this content")
 
     noai = bool(noai_evidence)
     for e in noai_evidence or []:
@@ -94,6 +103,7 @@ def assess(
         ai_crawlers_blocked=list(robots.ai_crawlers_blocked) if robots is not None else [],
         tdm_reserved=tdm.reserved if tdm is not None else None,
         tdm_policy=tdm.policy if tdm is not None else None,
+        ai_txt_allowed=ai_txt.allowed if ai_txt is not None else None,
         noai=noai,
         license=license_info.license if license_info else None,
         license_url=license_info.url if license_info else None,

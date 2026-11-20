@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from gleanly.clean import iter_json_ld, parse_html
-from gleanly.compliance import assess, detect_license, detect_noai, detect_pii, is_permissive
+from gleanly.compliance import aitxt, assess, detect_license, detect_noai, detect_pii, is_permissive
 from gleanly.compliance.license import LicenseInfo, license_from_url
 from gleanly.compliance.tdmrep import TdmSignal, from_headers, from_html, match_rules, most_specific
 from gleanly.fetch.robots import RobotsVerdict
@@ -181,3 +181,52 @@ def test_tdm_not_reserved_is_positive_and_pii_reported() -> None:
     assert info.pii_types == ["email"]
     assert info.robots_allowed is None
     assert any("Local file" in e for e in info.evidence)
+
+
+# ------------------------------------------------------------------ ai.txt
+SPAWNING = """# Spawning AI
+# Prevent datasets from using the following file types
+
+User-Agent: *
+Disallow: *.jpg
+Disallow: *.png
+Allow: *.html
+Allow: *.txt
+
+User-Agent: gleanly
+Disallow: /private/
+"""
+
+
+def test_ai_txt_file_type_rules_match_html_pages_without_extension() -> None:
+    ai = aitxt.parse(SPAWNING)
+    assert ai is not None
+    v = ai.verdict("https://ex.com/blog/post", "text/html; charset=utf-8", "otherbot")
+    assert v.allowed is True
+    assert v.rule == "Allow: *.html"
+    assert ai.verdict("https://ex.com/cat.jpg", "image/jpeg", "otherbot").allowed is False
+
+
+def test_ai_txt_own_group_and_longest_rule() -> None:
+    ai = aitxt.parse(SPAWNING)
+    assert ai is not None
+    # The gleanly group replaces "*": only /private/ is ruled on.
+    assert ai.verdict("https://ex.com/private/x", "text/html", "gleanly").allowed is False
+    assert ai.verdict("https://ex.com/blog", "text/html", "gleanly").allowed is None
+    site = aitxt.parse("User-Agent: *\nDisallow: /\nAllow: /open/\n")
+    assert site is not None
+    assert site.verdict("https://ex.com/open/a", "text/html", "x").allowed is True
+    assert site.verdict("https://ex.com/closed", "text/html", "x").allowed is False
+
+
+@pytest.mark.parametrize("body", ["", "<html><body>Not found</body></html>", "# only comments"])
+def test_ai_txt_without_rules_is_no_signal(body: str) -> None:
+    assert aitxt.parse(body) is None
+
+
+def test_ai_txt_in_verdict() -> None:
+    blocked = assess(robots=None, ai_txt=aitxt.AiTxtVerdict(False, "Disallow: /", "*"))
+    assert blocked.ai_use == "disallowed"
+    assert blocked.ai_txt_allowed is False
+    allowed = assess(robots=None, ai_txt=aitxt.AiTxtVerdict(True, "Allow: *.html", "*"))
+    assert allowed.ai_use == "allowed"

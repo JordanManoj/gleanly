@@ -33,6 +33,7 @@ def _site(
     *,
     robots: str | None = "User-agent: *\nAllow: /\n",
     tdmrep: object = None,
+    ai_txt: str | None = None,
 ) -> None:
     if robots is None:
         router.get(f"{SITE}/robots.txt").mock(return_value=httpx.Response(404))
@@ -43,6 +44,12 @@ def _site(
         router.get(wk).mock(return_value=httpx.Response(404))
     else:
         router.get(wk).mock(return_value=httpx.Response(200, json=tdmrep))
+    if ai_txt is None:
+        router.get(f"{SITE}/ai.txt").mock(return_value=httpx.Response(404))
+    else:
+        router.get(f"{SITE}/ai.txt").mock(
+            return_value=httpx.Response(200, text=ai_txt, headers={"content-type": "text/plain"})
+        )
 
 
 def _page(router: respx.MockRouter, url: str, body: str, **headers: str) -> respx.Route:
@@ -70,7 +77,7 @@ async def test_load_article(mock_http: respx.MockRouter, client: Client) -> None
     assert doc.compliance.robots_allowed is True
     assert doc.compliance.license == "CC-BY-4.0"
     assert doc.compliance.ai_use == "allowed"
-    assert [s.rung for s in doc.fetch_trace.steps] == ["robots", "tdmrep", "http"]
+    assert [s.rung for s in doc.fetch_trace.steps] == ["robots", "tdmrep", "ai.txt", "http"]
     assert doc.fetch_trace.final_rung == "http"
     for b in doc.blocks:
         assert doc.markdown[b.provenance.char_start : b.provenance.char_end] == b.text
@@ -213,6 +220,7 @@ async def test_cross_origin_redirect_rechecks_robots(
         return_value=httpx.Response(200, text="User-agent: *\nDisallow: /\n")
     )
     mock_http.get(f"{other}/.well-known/tdmrep.json").mock(return_value=httpx.Response(404))
+    mock_http.get(f"{other}/ai.txt").mock(return_value=httpx.Response(404))
     mock_http.get(f"{other}/moved").mock(
         return_value=httpx.Response(200, text="<p>x</p>", headers={"content-type": HTML})
     )
@@ -298,3 +306,28 @@ def test_document_round_trips_as_json() -> None:
     doc = load(FIXTURES / "article.html")
     again = Document.model_validate_json(doc.model_dump_json())
     assert again == doc
+
+
+async def test_ai_txt_disallow_makes_verdict_disallowed(
+    mock_http: respx.MockRouter, client: Client
+) -> None:
+    _site(mock_http, ai_txt="# Spawning AI\nUser-Agent: *\nDisallow: *.html\nAllow: *.jpg\n")
+    _page(mock_http, PAGE, fixture_text("article.html"))
+    doc = await client.aload(PAGE)
+    assert doc.compliance.ai_txt_allowed is False
+    assert doc.compliance.ai_use == "disallowed"
+    assert any("Disallow: *.html" in e for e in doc.compliance.evidence)
+    assert any(s.rung == "ai.txt" for s in doc.fetch_trace.steps)
+
+
+async def test_ai_txt_html_not_found_page_is_ignored(
+    mock_http: respx.MockRouter, client: Client
+) -> None:
+    # Many sites answer unknown paths with a 200 HTML page instead of a 404.
+    mock_http.get(f"{SITE}/robots.txt").mock(return_value=httpx.Response(404))
+    mock_http.get(f"{SITE}/.well-known/tdmrep.json").mock(return_value=httpx.Response(404))
+    _page(mock_http, f"{SITE}/ai.txt", "<html><body>Page not found. Disallow: /</body></html>")
+    _page(mock_http, PAGE, fixture_text("article.html"))
+    doc = await client.aload(PAGE)
+    assert doc.compliance.ai_txt_allowed is None
+    assert doc.compliance.ai_use != "disallowed"

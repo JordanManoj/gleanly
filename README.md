@@ -33,7 +33,7 @@ Phase 1 (web pages) is in progress. See [docs/status.md](docs/status.md).
 | Web page → Markdown + metadata | ✅ v0 |
 | Fetch ladder: HTTP → embedded data (JSON-LD, `__NEXT_DATA__`) → Playwright | ✅ v0 |
 | robots.txt (RFC 9309), per-host rate limiting, honest User-Agent | ✅ |
-| Compliance: TDMRep, `noai`, AI-crawler opt-outs, license detection, PII flags | ✅ v0 |
+| Compliance: TDMRep, `ai.txt`, `noai`, AI-crawler opt-outs, license detection, PII flags | ✅ v0 |
 | Quality report + trust score | ✅ v0 (uncalibrated) |
 | PDFs, OCR (Tesseract) | Phase 2 |
 | `search()` with reranking and cross-source agreement | Phase 3 |
