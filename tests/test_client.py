@@ -244,15 +244,14 @@ async def test_plain_text_response(mock_http: respx.MockRouter, client: Client) 
     assert doc.blocks[0].provenance.kind == "text"
 
 
-async def test_pdf_is_not_supported_yet(mock_http: respx.MockRouter, client: Client) -> None:
+async def test_image_is_not_supported_yet(mock_http: respx.MockRouter, client: Client) -> None:
     _site(mock_http)
-    url = f"{SITE}/paper.pdf"
+    url = f"{SITE}/scan.png"
+    png = bytes([0x89]) + b"PNG" + bytes([13, 10, 26, 10])
     mock_http.get(url).mock(
-        return_value=httpx.Response(
-            200, content=b"%PDF-1.7", headers={"content-type": "application/pdf"}
-        )
+        return_value=httpx.Response(200, content=png, headers={"content-type": "image/png"})
     )
-    with pytest.raises(UnsupportedSourceError, match="Phase 2"):
+    with pytest.raises(UnsupportedSourceError, match="OCR"):
         await client.aload(url)
 
 

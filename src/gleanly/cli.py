@@ -20,7 +20,7 @@ def _build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("load", help="Load a URL or local file.")
-    p.add_argument("source", help="URL or path to a local .html/.txt/.md file")
+    p.add_argument("source", help="URL or path to a local .html/.pdf/.txt/.md file")
     p.add_argument("-o", "--output", help="Write to this file instead of stdout.")
     p.add_argument(
         "-f",

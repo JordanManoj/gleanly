@@ -82,6 +82,9 @@ class RawBlock:
     kind: str = "html"
     support: float | None = None
     role: str = "main"  # "main" content or a reader "comment"
+    page: int | None = None  # 1-based page (PDF, OCR)
+    bbox: tuple[float, float, float, float] | None = None  # x0, top, x1, bottom on the page
+    size: float | None = None  # font size or line height, used by document layout
 
 
 @dataclass

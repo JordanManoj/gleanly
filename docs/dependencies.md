@@ -25,9 +25,13 @@ typing-extensions (PSF-2.0), **certifi (MPL-2.0)**.
 | --- | --- | --- |
 | `browser` | [playwright](https://github.com/microsoft/playwright-python) | Apache-2.0 |
 | `browser` | greenlet (transitive) | MIT / PSF-2.0 |
+| `pdf`, `ocr` | [pypdfium2](https://github.com/pypdfium2-team/pypdfium2) | BSD-3-Clause / Apache-2.0 (bundles PDFium: BSD-3-Clause) |
+| `ocr` | [Pillow](https://github.com/python-pillow/Pillow) | MIT-CMU |
 
-`ocr` (Tesseract bindings), `search` and `llm` extras arrive in later phases. The Tesseract
-engine itself is Apache-2.0.
+`ocr` also needs the [Tesseract](https://github.com/tesseract-ocr/tesseract) program
+(Apache-2.0), installed separately. gleanly calls it directly (no Python binding), so its
+per-word confidences and boxes come straight from Tesseract's TSV output.
+`search` and `llm` extras arrive in later phases.
 
 ## Development only (not shipped)
 

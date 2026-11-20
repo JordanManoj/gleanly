@@ -34,7 +34,11 @@ def compute_quality(
     extraction_confidence: float | None = None,
     extraction_support: float | None = None,
     extraction_coverage: float | None = None,
+    extra_warnings: list[str] | None = None,
+    score_factor: float = 1.0,
 ) -> QualityReport:
+    """``score_factor`` scales the score for source-specific losses (e.g. PDF pages
+    without a text layer); ``extra_warnings`` are source-specific notes."""
     words = extraction.word_count
     chars = extraction.content_chars
     link_density = _clip(extraction.link_chars / chars) if chars else 0.0
@@ -82,6 +86,8 @@ def compute_quality(
             "The main extractor found little text, so the block classifier was used instead; "
             "the layout is unusual, so check the result."
         )
+    warnings += extra_warnings or []
+    score *= _clip(score_factor)
     if truncated:
         warnings.append("The response exceeded max_bytes and was truncated.")
         score *= 0.8

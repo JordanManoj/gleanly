@@ -39,7 +39,9 @@ class Provenance(_Model):
     )
     page: int | None = Field(default=None, description="1-based page number (PDF, later).")
     bbox: tuple[float, float, float, float] | None = Field(
-        default=None, description="x0, y0, x1, y1 region on the page or image (later)."
+        default=None,
+        description="x0, top, x1, bottom of the block on the page: PDF points or image pixels, "
+        "origin at the top-left.",
     )
     char_start: int = Field(description="Start offset of the block inside Document.markdown.")
     char_end: int = Field(description="End offset (exclusive) inside Document.markdown.")
@@ -163,7 +165,9 @@ class ComplianceInfo(_Model):
 
 
 class FetchStep(_Model):
-    rung: str = Field(description="robots | tdmrep | ai.txt | http | embedded | browser | file")
+    rung: str = Field(
+        description="robots | tdmrep | ai.txt | http | embedded | browser | file | pdf"
+    )
     url: str | None = None
     ok: bool
     status_code: int | None = None

@@ -37,7 +37,12 @@ dependencies = [
 [project.optional-dependencies]
 # Rung 3 of the fetch ladder. After installing run: playwright install chromium
 browser = ["playwright>=1.45"]
-# ocr, search and llm extras arrive with their phases (see docs/roadmap.md).
+# Native PDFs: text layer with page + bounding-box provenance.
+pdf = ["pypdfium2>=4.30"]
+# OCR for images and scanned PDFs. Also needs the Tesseract program installed
+# (https://github.com/tesseract-ocr/tesseract); gleanly calls it directly.
+ocr = ["pypdfium2>=4.30", "pillow>=10.0"]
+# search and llm extras arrive with their phases (see docs/roadmap.md).
 
 [project.scripts]
 gleanly = "gleanly.cli:main"

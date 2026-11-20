@@ -63,7 +63,8 @@ def assemble(raw_blocks: list[RawBlock], source: str) -> tuple[str, list[Block]]
         start = pos
         parts.append(rb.text)
         pos += len(rb.text)
-        kind = rb.kind if rb.kind in ("html", "embedded", "text") else "html"
+        kind = rb.kind if rb.kind in ("html", "embedded", "text", "pdf", "image") else "html"
+        bbox = tuple(round(v, 1) for v in rb.bbox) if rb.bbox else None
         blocks.append(
             Block(
                 text=rb.text,
@@ -75,6 +76,8 @@ def assemble(raw_blocks: list[RawBlock], source: str) -> tuple[str, list[Block]]
                     source=source,
                     kind=kind,  # type: ignore[arg-type]
                     dom_path=rb.dom_path,
+                    page=rb.page,
+                    bbox=bbox,  # type: ignore[arg-type]
                     char_start=start,
                     char_end=pos,
                 ),
@@ -184,6 +187,10 @@ class Client:
             license_info = detect_license(root, json_ld, None)
             noai = detect_noai({}, root)
             tdm_signals = [s for s in (tdmrep.from_html(root),) if s]
+        elif suffix == ".pdf":
+            return self._pdf_document(
+                data, source=source, url=uri, trace=trace, robots=None, local=True
+            )
         elif suffix in (".txt", ".md", ".markdown", ".text"):
             text = data.decode("utf-8", errors="replace").lstrip("﻿")
             extraction = Extraction(_text_blocks(text, suffix != ".txt"), "file")
@@ -290,11 +297,29 @@ class Client:
             robots, tdm_wk, ai_file = await self._check_origin(resp.url, trace)
 
         ctype = resp.content_type
-        if ctype == "application/pdf" or ctype.startswith("image/"):
-            raise UnsupportedSourceError(f"{ctype} content arrives in Phase 2 (PDF/OCR).")
-        text = resp.text()
+        is_pdf = ctype == "application/pdf" or (
+            ctype in ("application/octet-stream", "") and resp.content[:5] == b"%PDF-"
+        )
+        if is_pdf:
+            ctype = "application/pdf"
         tdm_signals = [s for s in (tdm_wk, tdmrep.from_headers(resp.headers)) if s]
         ai_txt = ai_file.verdict(resp.url, ctype, o.robots_token) if ai_file else None
+        if is_pdf:
+            return self._pdf_document(
+                resp.content,
+                source=source,
+                url=resp.url,
+                trace=trace,
+                robots=robots,
+                tdm_signals=tdm_signals,
+                ai_txt=ai_txt,
+                noai=detect_noai(resp.headers, None),
+                status_code=resp.status_code,
+                truncated=resp.truncated,
+            )
+        if ctype.startswith("image/"):
+            raise UnsupportedSourceError(f"{ctype} content arrives with OCR (Phase 2).")
+        text = resp.text()
 
         if ctype in _TEXT_TYPES or (ctype not in _HTML_TYPES and ctype.startswith("text/")):
             extraction = Extraction(_text_blocks(text, "markdown" in ctype), "http")
@@ -398,6 +423,78 @@ class Client:
             check_root=final_root,
         )
 
+    def _pdf_document(
+        self,
+        data: bytes,
+        *,
+        source: str,
+        url: str,
+        trace: FetchTrace,
+        robots: RobotsVerdict | None,
+        tdm_signals: list[tdmrep.TdmSignal] | None = None,
+        ai_txt: aitxt.AiTxtVerdict | None = None,
+        noai: list[str] | None = None,
+        status_code: int | None = None,
+        truncated: bool = False,
+        local: bool = False,
+    ) -> Document:
+        from gleanly.pdf.native import pdf_date, read_pdf
+
+        if truncated:
+            raise UnsupportedSourceError(
+                f"The PDF at {url} is larger than max_bytes ({self.options.max_bytes}); "
+                "raise max_bytes to read it."
+            )
+        pdf = read_pdf(data)
+        with_text = pdf.page_count - len(pdf.empty_pages)
+        trace.steps.append(
+            FetchStep(
+                rung="pdf",
+                url=url,
+                ok=with_text > 0,
+                detail=f"{pdf.page_count} pages, {with_text} with a text layer",
+            )
+        )
+        trace.final_url, trace.final_rung = url, "pdf"
+        info = pdf.info
+        first_heading = next(
+            (b.text.lstrip("#").strip() for b in pdf.extraction.blocks if b.type == "heading"),
+            None,
+        )
+        metadata = Metadata(
+            title=info.get("Title") or first_heading,
+            author=info.get("Author"),
+            description=info.get("Subject"),
+            published_at=pdf_date(info.get("CreationDate")),
+            modified_at=pdf_date(info.get("ModDate")),
+            content_type="application/pdf",
+            status_code=status_code,
+        )
+        notes: list[str] = []
+        if pdf.empty_pages:
+            pages = ", ".join(str(p) for p in pdf.empty_pages[:10])
+            more = "..." if len(pdf.empty_pages) > 10 else ""
+            notes.append(
+                f"{len(pdf.empty_pages)} of {pdf.page_count} pages have no text layer "
+                f"(pages {pages}{more}); they are probably scanned and need OCR."
+            )
+        return self._build(
+            source=source,
+            url=url,
+            extraction=pdf.extraction,
+            metadata=metadata,
+            trace=trace,
+            raw_size=len(data),
+            robots=robots,
+            tdm_signals=tdm_signals or [],
+            ai_txt=ai_txt,
+            noai=noai or [],
+            license_info=None,
+            local=local,
+            extra_warnings=notes,
+            score_factor=with_text / pdf.page_count if pdf.page_count else 0.0,
+        )
+
     @staticmethod
     def _try_embedded(
         root: HtmlElement,
@@ -453,6 +550,8 @@ class Client:
         local: bool = False,
         truncated: bool = False,
         js_suspect: bool = False,
+        extra_warnings: list[str] | None = None,
+        score_factor: float = 1.0,
     ) -> Document:
         check = cross_check(extraction, check_root)
         for raw, support in zip(extraction.blocks, check.block_support, strict=True):
@@ -479,6 +578,8 @@ class Client:
             extraction_confidence=check.confidence,
             extraction_support=check.support,
             extraction_coverage=check.coverage,
+            extra_warnings=extra_warnings,
+            score_factor=score_factor,
         )
         return Document(
             source=source,
