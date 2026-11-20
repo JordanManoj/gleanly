@@ -93,6 +93,7 @@ class PageText:
     width: float
     height: float
     words: list[Word] = field(default_factory=list)
+    kind: str | None = None  # provenance kind for this page; "image" = text read by OCR
 
 
 def to_lines(words: list[Word]) -> list[TextLine]:
@@ -280,10 +281,16 @@ def layout(pages: list[PageText], kind: str) -> list[RawBlock]:
     """Full pipeline for a document: words on every page -> blocks in reading order."""
     lines = [to_lines(p.words) for p in pages]
     lines = drop_running_lines(lines, [p.height for p in pages])
-    body = body_size(lines)
+    # Body size per source: PDF text reports font size, OCR reports line height.
+    kinds = {p.kind or kind for p in pages}
+    body = {
+        k: body_size([ln for p, ln in zip(pages, lines, strict=True) if (p.kind or kind) == k])
+        for k in kinds
+    }
     blocks: list[RawBlock] = []
     for p, page_lines in zip(pages, lines, strict=True):
-        blocks += to_blocks(to_paragraphs(page_lines), p.number, body, kind)
+        k = p.kind or kind
+        blocks += to_blocks(to_paragraphs(page_lines), p.number, body[k], k)
     rank_headings(blocks)
     return blocks
 

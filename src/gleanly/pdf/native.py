@@ -8,8 +8,9 @@ rung can handle them.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol
 
 from gleanly.clean.html import Extraction, RawBlock
 from gleanly.errors import UnsupportedSourceError
@@ -27,6 +28,29 @@ class PdfText:
     pages: list[PageText]
     empty_pages: list[int] = field(default_factory=list)  # 1-based pages with no text layer
     info: dict[str, str] = field(default_factory=dict)
+    ocr_pages: list[int] = field(default_factory=list)  # empty pages that OCR filled in
+    ocr_confidence: float | None = None
+    ocr_steps: list[str] = field(default_factory=list)
+
+
+class OcrConfidence:
+    @staticmethod
+    def of(words: list[Word]) -> float | None:
+        """Length-weighted mean word confidence."""
+        scored = [(w.conf, len(w.text)) for w in words if w.conf is not None]
+        total = sum(n for _, n in scored)
+        return sum(c * n for c, n in scored) / total if total else None
+
+
+class _OcrOutput(Protocol):
+    words: list[Word]
+    steps: list[str]
+
+
+# Renders a scanned page image and returns its OCR words, in PDF points (2nd argument:
+# points per rendered pixel).
+PageOcr = Callable[[Any, float], _OcrOutput]
+OCR_DPI = 300
 
 
 def _pdfium() -> Any:
@@ -129,7 +153,7 @@ def pdf_date(value: str | None) -> str | None:
     return "-".join(part for part in m.groups() if part)
 
 
-def read_pdf(data: bytes, *, password: str | None = None) -> PdfText:
+def read_pdf(data: bytes, *, password: str | None = None, ocr: PageOcr | None = None) -> PdfText:
     pdfium = _pdfium()
     try:
         pdf = pdfium.PdfDocument(data, password=password)
@@ -138,23 +162,36 @@ def read_pdf(data: bytes, *, password: str | None = None) -> PdfText:
     try:
         pages: list[PageText] = []
         empty: list[int] = []
+        ocr_pages: list[int] = []
+        ocr_words: list[Word] = []
+        ocr_notes: list[str] = []
         for i in range(len(pdf)):
             page = pdf[i]
+            kind = "pdf"
             try:
                 width, height = page.get_size()
                 words = _page_words(page, height)
+                if sum(len(w.text) for w in words) < MIN_PAGE_CHARS:
+                    empty.append(i + 1)
+                    if ocr is not None:
+                        image = page.render(scale=OCR_DPI / 72).to_pil()
+                        result = ocr(image, 72 / OCR_DPI)
+                        if result.words:
+                            words, kind = result.words, "image"
+                            ocr_pages.append(i + 1)
+                            ocr_words += result.words
+                            ocr_notes += [f"page {i + 1}: {s}" for s in result.steps]
             finally:
                 page.close()
-            if sum(len(w.text) for w in words) < MIN_PAGE_CHARS:
-                empty.append(i + 1)
-            pages.append(PageText(i + 1, width, height, words))
+            pages.append(PageText(i + 1, width, height, words, kind=kind))
         info = _info(pdf)
     finally:
         pdf.close()
     blocks: list[RawBlock] = layout(pages, kind="pdf")
     total_chars = sum(len(w.text) + 1 for p in pages for w in p.words)
     extraction = Extraction(blocks, "pdf", page_chars=total_chars)
-    return PdfText(extraction, len(pages), pages, empty, info)
+    ocr_conf = OcrConfidence.of(ocr_words)
+    return PdfText(extraction, len(pages), pages, empty, info, ocr_pages, ocr_conf, ocr_notes)
 
 
 __all__ = ["PdfText", "pdf_date", "read_pdf"]

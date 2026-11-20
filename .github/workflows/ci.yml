@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - run: uv sync --locked --extra pdf
+      - run: uv sync --locked --extra pdf --extra ocr
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pyright
@@ -36,7 +36,10 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ matrix.python }}
-      - run: uv sync --locked --extra pdf
+      - name: Install Tesseract (OCR tests; skipped where it is missing)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr
+      - run: uv sync --locked --extra pdf --extra ocr
       - run: uv run pytest
 
   build:

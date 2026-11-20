@@ -39,3 +39,18 @@ class LoadOptions(BaseModel):
         description="Append reader comments after the main content (blocks get "
         "role='comment'). Off by default: for most AI uses comments are noise.",
     )
+    ocr: Literal["auto", "never"] = Field(
+        default="auto",
+        description="auto: OCR images and PDF pages without a text layer when the [ocr] "
+        "extra and the Tesseract program are installed. never: skip OCR.",
+    )
+    ocr_lang: str = Field(
+        default="eng",
+        description="Tesseract language(s), e.g. 'eng' or 'eng+deu'. The language data "
+        "must be installed.",
+    )
+    tesseract_cmd: str | None = Field(
+        default=None,
+        description="Path to the tesseract executable if it is not on PATH or in the "
+        "usual install folder.",
+    )

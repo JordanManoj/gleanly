@@ -244,14 +244,17 @@ async def test_plain_text_response(mock_http: respx.MockRouter, client: Client) 
     assert doc.blocks[0].provenance.kind == "text"
 
 
-async def test_image_is_not_supported_yet(mock_http: respx.MockRouter, client: Client) -> None:
+async def test_broken_image_url_is_a_clear_error(
+    mock_http: respx.MockRouter, client: Client
+) -> None:
     _site(mock_http)
     url = f"{SITE}/scan.png"
     png = bytes([0x89]) + b"PNG" + bytes([13, 10, 26, 10])
     mock_http.get(url).mock(
         return_value=httpx.Response(200, content=png, headers={"content-type": "image/png"})
     )
-    with pytest.raises(UnsupportedSourceError, match="OCR"):
+    # Either OCR is not installed, or the bytes are not a real image: both say so.
+    with pytest.raises(UnsupportedSourceError, match="image"):
         await client.aload(url)
 
 
@@ -288,10 +291,10 @@ def test_load_local_files(tmp_path: Path) -> None:
 def test_load_rejects_unknown_sources(tmp_path: Path) -> None:
     with pytest.raises(UnsupportedSourceError):
         load("definitely not a source")
-    img = tmp_path / "scan.png"
-    img.write_bytes(b"\x89PNG")
-    with pytest.raises(UnsupportedSourceError, match="Phase 2"):
-        load(img)
+    other = tmp_path / "data.xyz"
+    other.write_bytes(b"0")
+    with pytest.raises(UnsupportedSourceError, match=r"Unsupported file type .xyz"):
+        load(other)
 
 
 async def test_aload_and_load_guard() -> None:

@@ -108,7 +108,8 @@ def test_scanned_pages_are_reported(tmp_path: Path) -> None:
     path = tmp_path / "mixed.pdf"
     path.write_bytes(build_pdf([text_page, scan]))
     doc = load(str(path))
-    assert any("1 of 2 pages have no text layer" in w for w in doc.quality.warnings)
+    # A blank scan has nothing for OCR to read either, so it is reported.
+    assert any("1 of 2 pages have no readable text" in w for w in doc.quality.warnings)
     full = load_single(tmp_path, text_page)
     assert doc.quality.score < full.quality.score
 

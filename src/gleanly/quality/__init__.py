@@ -17,6 +17,8 @@ W_LINKS = 0.25
 W_STRUCTURE = 0.20
 # Share of the score given to the extraction cross-check when it is available.
 W_CONFIDENCE = 0.35
+# Below this mean Tesseract word confidence, OCR text gets a warning (set from bench.ocr).
+LOW_OCR_CONFIDENCE = 0.8
 
 
 def _clip(x: float) -> float:
@@ -36,9 +38,11 @@ def compute_quality(
     extraction_coverage: float | None = None,
     extra_warnings: list[str] | None = None,
     score_factor: float = 1.0,
+    ocr_confidence: float | None = None,
 ) -> QualityReport:
     """``score_factor`` scales the score for source-specific losses (e.g. PDF pages
-    without a text layer); ``extra_warnings`` are source-specific notes."""
+    without a text layer); ``extra_warnings`` are source-specific notes;
+    ``ocr_confidence`` is blended in like the extraction cross-check."""
     words = extraction.word_count
     chars = extraction.content_chars
     link_density = _clip(extraction.link_chars / chars) if chars else 0.0
@@ -55,7 +59,14 @@ def compute_quality(
     score = W_LENGTH * s_length + W_LINKS * s_links + W_STRUCTURE * s_structure
     if extraction_confidence is not None:
         score = (1 - W_CONFIDENCE) * score + W_CONFIDENCE * extraction_confidence
+    if ocr_confidence is not None:
+        score = (1 - W_CONFIDENCE) * score + W_CONFIDENCE * ocr_confidence
     warnings: list[str] = []
+    if ocr_confidence is not None and ocr_confidence < LOW_OCR_CONFIDENCE and words:
+        warnings.append(
+            f"Low OCR confidence ({ocr_confidence:.2f}): the scan may be blurred, faint or "
+            "skewed; expect misread characters."
+        )
     if extraction_confidence is not None and extraction_confidence < LOW_CONFIDENCE and words:
         sup = 1.0 if extraction_support is None else extraction_support
         cov = 1.0 if extraction_coverage is None else extraction_coverage
@@ -107,6 +118,7 @@ def compute_quality(
         extraction_method=extraction.method,
         extractor=extraction.extractor,
         extraction_confidence=extraction_confidence,
+        ocr_confidence=round(ocr_confidence, 3) if ocr_confidence is not None else None,
         extraction_support=extraction_support,
         extraction_coverage=extraction_coverage,
         language=language,

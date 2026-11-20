@@ -49,6 +49,16 @@ from gleanly.quality.crosscheck import cross_check
 Source = str | os.PathLike[str]
 _HTML_TYPES = {"text/html", "application/xhtml+xml", ""}
 _TEXT_TYPES = {"text/plain", "text/markdown", "text/x-markdown"}
+_IMAGE_SUFFIXES = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".tif": "image/tiff",
+    ".tiff": "image/tiff",
+    ".bmp": "image/bmp",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+}
 _BARE_DOMAIN = re.compile(r"^[\w-]+(\.[\w-]+)+(/.*)?$")
 
 
@@ -191,6 +201,16 @@ class Client:
             return self._pdf_document(
                 data, source=source, url=uri, trace=trace, robots=None, local=True
             )
+        elif suffix in _IMAGE_SUFFIXES:
+            return self._image_document(
+                data,
+                source=source,
+                url=uri,
+                trace=trace,
+                robots=None,
+                ctype=_IMAGE_SUFFIXES[suffix],
+                local=True,
+            )
         elif suffix in (".txt", ".md", ".markdown", ".text"):
             text = data.decode("utf-8", errors="replace").lstrip("﻿")
             extraction = Extraction(_text_blocks(text, suffix != ".txt"), "file")
@@ -199,7 +219,8 @@ class Client:
             root = None
         else:
             raise UnsupportedSourceError(
-                f"Unsupported file type {suffix or '(none)'}: PDFs and images arrive in Phase 2."
+                f"Unsupported file type {suffix or '(none)'}: supported are .html, .pdf, "
+                "images (.png, .jpg, .tiff, ...), .txt and .md."
             )
         return self._build(
             source=source,
@@ -318,7 +339,18 @@ class Client:
                 truncated=resp.truncated,
             )
         if ctype.startswith("image/"):
-            raise UnsupportedSourceError(f"{ctype} content arrives with OCR (Phase 2).")
+            return self._image_document(
+                resp.content,
+                source=source,
+                url=resp.url,
+                trace=trace,
+                robots=robots,
+                ctype=ctype,
+                tdm_signals=tdm_signals,
+                ai_txt=ai_txt,
+                noai=detect_noai(resp.headers, None),
+                status_code=resp.status_code,
+            )
         text = resp.text()
 
         if ctype in _TEXT_TYPES or (ctype not in _HTML_TYPES and ctype.startswith("text/")):
@@ -445,16 +477,31 @@ class Client:
                 f"The PDF at {url} is larger than max_bytes ({self.options.max_bytes}); "
                 "raise max_bytes to read it."
             )
-        pdf = read_pdf(data)
+        ocr, ocr_problem = self._ocr_function()
+        pdf = read_pdf(data, ocr=ocr)
         with_text = pdf.page_count - len(pdf.empty_pages)
         trace.steps.append(
             FetchStep(
                 rung="pdf",
                 url=url,
-                ok=with_text > 0,
+                ok=with_text > 0 or bool(pdf.ocr_pages),
                 detail=f"{pdf.page_count} pages, {with_text} with a text layer",
             )
         )
+        if pdf.empty_pages:
+            trace.steps.append(
+                FetchStep(
+                    rung="ocr",
+                    url=url,
+                    ok=bool(pdf.ocr_pages),
+                    detail=(
+                        f"OCR'd {len(pdf.ocr_pages)} scanned page(s)"
+                        + (f"; {'; '.join(pdf.ocr_steps[:6])}" if pdf.ocr_steps else "")
+                        if pdf.ocr_pages
+                        else ocr_problem or "OCR found no text"
+                    ),
+                )
+            )
         trace.final_url, trace.final_rung = url, "pdf"
         info = pdf.info
         first_heading = next(
@@ -471,13 +518,21 @@ class Client:
             status_code=status_code,
         )
         notes: list[str] = []
-        if pdf.empty_pages:
-            pages = ", ".join(str(p) for p in pdf.empty_pages[:10])
-            more = "..." if len(pdf.empty_pages) > 10 else ""
+        unread = [p for p in pdf.empty_pages if p not in pdf.ocr_pages]
+        if unread:
+            pages = ", ".join(str(p) for p in unread[:10])
+            more = "..." if len(unread) > 10 else ""
+            why = f" OCR was not available: {ocr_problem}" if ocr_problem else ""
             notes.append(
-                f"{len(pdf.empty_pages)} of {pdf.page_count} pages have no text layer "
-                f"(pages {pages}{more}); they are probably scanned and need OCR."
+                f"{len(unread)} of {pdf.page_count} pages have no readable text "
+                f"(pages {pages}{more}); they are probably scanned.{why}"
             )
+        if pdf.ocr_pages:
+            notes.append(
+                f"{len(pdf.ocr_pages)} scanned page(s) were read with OCR; their blocks have "
+                "provenance kind 'image'."
+            )
+        readable = pdf.page_count - len(unread)
         return self._build(
             source=source,
             url=url,
@@ -492,7 +547,97 @@ class Client:
             license_info=None,
             local=local,
             extra_warnings=notes,
-            score_factor=with_text / pdf.page_count if pdf.page_count else 0.0,
+            score_factor=readable / pdf.page_count if pdf.page_count else 0.0,
+            ocr_confidence=pdf.ocr_confidence,
+        )
+
+    def _ocr_function(self) -> tuple[Any, str | None]:
+        """(page OCR callable, None) or (None, why OCR cannot run)."""
+        o = self.options
+        if o.ocr == "never":
+            return None, "ocr='never'"
+        try:
+            import PIL  # noqa: F401
+
+            from gleanly.ocr.engine import ocr_image
+            from gleanly.ocr.tesseract import find_tesseract
+
+            find_tesseract(o.tesseract_cmd)
+        except ImportError:
+            return None, "install the [ocr] extra: pip install 'gleanly[ocr]'"
+        except UnsupportedSourceError as exc:
+            return None, str(exc)
+
+        def run(image: Any, scale: float) -> Any:
+            return ocr_image(image, lang=o.ocr_lang, cmd=o.tesseract_cmd, scale=scale)
+
+        return run, None
+
+    def _image_document(
+        self,
+        data: bytes,
+        *,
+        source: str,
+        url: str,
+        trace: FetchTrace,
+        robots: RobotsVerdict | None,
+        ctype: str,
+        tdm_signals: list[tdmrep.TdmSignal] | None = None,
+        ai_txt: aitxt.AiTxtVerdict | None = None,
+        noai: list[str] | None = None,
+        status_code: int | None = None,
+        local: bool = False,
+    ) -> Document:
+        ocr, problem = self._ocr_function()
+        if ocr is None:
+            raise UnsupportedSourceError(f"Reading text from images needs OCR: {problem}")
+        import io
+
+        from PIL import Image, ImageSequence, UnidentifiedImageError
+
+        from gleanly.pdf.layout import PageText, layout
+        from gleanly.pdf.native import OcrConfidence
+
+        try:
+            img = Image.open(io.BytesIO(data))
+            frames = [f.copy() for f in ImageSequence.Iterator(img)]  # multi-page TIFF
+        except (UnidentifiedImageError, OSError) as exc:
+            raise UnsupportedSourceError(f"Could not open the image: {exc}") from exc
+        pages: list[PageText] = []
+        steps: list[str] = []
+        for n, frame in enumerate(frames, start=1):
+            result = ocr(frame, 1.0)
+            pages.append(PageText(n, result.width, result.height, result.words, kind="image"))
+            steps += result.steps
+        words = [w for p in pages for w in p.words]
+        trace.steps.append(
+            FetchStep(
+                rung="ocr",
+                url=url,
+                ok=bool(words),
+                detail=f"{len(frames)} image page(s), {len(words)} words; " + "; ".join(steps[:4]),
+            )
+        )
+        trace.final_url, trace.final_rung = url, "ocr"
+        extraction = Extraction(layout(pages, kind="image"), "ocr")
+        first_heading = next(
+            (b.text.lstrip("#").strip() for b in extraction.blocks if b.type == "heading"), None
+        )
+        metadata = Metadata(title=first_heading, content_type=ctype, status_code=status_code)
+        return self._build(
+            source=source,
+            url=url,
+            extraction=extraction,
+            metadata=metadata,
+            trace=trace,
+            raw_size=len(data),
+            robots=robots,
+            tdm_signals=tdm_signals or [],
+            ai_txt=ai_txt,
+            noai=noai or [],
+            license_info=None,
+            local=local,
+            ocr_confidence=OcrConfidence.of(words),
         )
 
     @staticmethod
@@ -552,6 +697,7 @@ class Client:
         js_suspect: bool = False,
         extra_warnings: list[str] | None = None,
         score_factor: float = 1.0,
+        ocr_confidence: float | None = None,
     ) -> Document:
         check = cross_check(extraction, check_root)
         for raw, support in zip(extraction.blocks, check.block_support, strict=True):
@@ -580,6 +726,7 @@ class Client:
             extraction_coverage=check.coverage,
             extra_warnings=extra_warnings,
             score_factor=score_factor,
+            ocr_confidence=ocr_confidence,
         )
         return Document(
             source=source,

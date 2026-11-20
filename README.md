@@ -36,7 +36,7 @@ Phase 1 (web pages) is in progress. See [docs/status.md](docs/status.md).
 | Compliance: TDMRep, `ai.txt`, `noai`, AI-crawler opt-outs, license detection, PII flags | ✅ v0 |
 | Quality report + trust score | ✅ v0 (uncalibrated) |
 | Native PDFs (`gleanly[pdf]`): headings, lists, page + bounding-box provenance, running headers removed | ✅ v0 |
-| OCR for images and scanned PDFs (Tesseract) | Phase 2, in progress |
+| OCR for images and scanned PDF pages (`gleanly[ocr]` + Tesseract): background flattening, text-size normalisation, layout self-check, OCR confidence in the trust score | ✅ v0 |
 | `search()` with reranking and cross-source agreement | Phase 3 |
 | Archive fallbacks, crawling, server mode, benchmark | Phase 4 |
 

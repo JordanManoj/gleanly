@@ -125,7 +125,13 @@ class QualityReport(_Model):
         "(low = part of the main content may be missing).",
     )
     language: str | None = None
-    ocr_confidence: float | None = None
+    ocr_confidence: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Tesseract's mean word confidence over OCR'd text (length-weighted). "
+        "None = no OCR was used.",
+    )
     warnings: list[str] = Field(default_factory=list)
 
 
@@ -166,7 +172,7 @@ class ComplianceInfo(_Model):
 
 class FetchStep(_Model):
     rung: str = Field(
-        description="robots | tdmrep | ai.txt | http | embedded | browser | file | pdf"
+        description="robots | tdmrep | ai.txt | http | embedded | browser | file | pdf | ocr"
     )
     url: str | None = None
     ok: bool
