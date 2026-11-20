@@ -20,7 +20,9 @@ def _build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("load", help="Load a URL or local file.")
-    p.add_argument("source", help="URL or path to a local .html/.pdf/.txt/.md file")
+    p.add_argument(
+        "source", help="URL or local file: .html, .pdf, images (.png/.jpg/.tiff...), .txt, .md"
+    )
     p.add_argument("-o", "--output", help="Write to this file instead of stdout.")
     p.add_argument(
         "-f",
@@ -35,6 +37,16 @@ def _build_parser() -> argparse.ArgumentParser:
         "--comments",
         action="store_true",
         help="Also extract reader comments (appended after the main content).",
+    )
+    p.add_argument(
+        "--no-ocr",
+        action="store_true",
+        help="Do not OCR images or scanned PDF pages (they are reported instead).",
+    )
+    p.add_argument(
+        "--ocr-lang",
+        default="eng",
+        help="Tesseract language(s), e.g. eng or eng+deu (default: eng).",
     )
     p.add_argument(
         "--ignore-robots",
@@ -60,6 +72,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             min_delay=args.min_delay,
             respect_robots=not args.ignore_robots,
             include_comments=args.comments,
+            ocr="never" if args.no_ocr else "auto",
+            ocr_lang=args.ocr_lang,
         )
     except AcquisitionError as exc:
         print(f"error: {exc}", file=sys.stderr)

@@ -72,3 +72,17 @@ def test_cli_json_to_stdout(capsys: pytest.CaptureFixture[str]) -> None:
 def test_cli_error_exit_code(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["load", "not a source at all"]) == 1
     assert "error:" in capsys.readouterr().err
+
+
+def test_cli_no_ocr_reports_scanned_pdf_pages(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    pytest.importorskip("pypdfium2")
+    from .pdfmaker import Page, build_pdf, flow
+
+    pdf = tmp_path / "mixed.pdf"
+    text = Page(flow([("A cover page with a real text layer for the CLI test.", 11, False)]))
+    pdf.write_bytes(build_pdf([text, Page(image=(4, 4, bytes([255]) * 48))]))
+    assert main(["load", str(pdf), "--no-ocr", "-f", "json"]) == 0
+    out = capsys.readouterr().out
+    assert "OCR was not available: ocr='never'" in out

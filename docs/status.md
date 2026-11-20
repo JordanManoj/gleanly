@@ -1,6 +1,6 @@
 # Status
 
-## Phase 1: web pages (in progress)
+## Phase 1: web pages (done)
 
 | Item | State | Notes |
 | --- | --- | --- |
@@ -15,20 +15,35 @@
 | Metadata: title, description, language, canonical, author, dates, JSON-LD | done | |
 | ComplianceInfo v0: robots, AI-crawler opt-outs, TDMRep, `ai.txt`, `noai`, license, PII | done | ai.txt: file-type rules match pages by content type; HTML "not found" pages ignored |
 | QualityReport v0 + score | done | Heuristic, uncalibrated |
-| Extraction benchmark (`bench/`) with dev/test split + baselines | done | F1 0.958 on 181 pages |
+| Extraction benchmark (`bench/`): 8 datasets, dev/test split, baselines | done | Held-out macro F1 0.902 (trafilatura 0.910, readability 0.900) |
 | Optional reader comments (`include_comments`, `--comments`, `Block.role`) | done | Held-out Dragnet 0.901 / CETD 0.934, both above trafilatura |
 | Extraction confidence: independent cross-check, per-block `support` | done | v2 adds coverage (missed prose); held-out AUROC 0.82 over 8 datasets, no extra dependency |
-| CLI `gleanly load URL -o out.md / out.json` | done | |
+| Real-world regression pages (news, docs, WordPress, shop) | done | Original content modelled on real layouts; golden Markdown files |
+| CLI `gleanly load SOURCE -o out.md / out.json` | done | |
 | Tests (no real network; respx + HTML fixtures) | done | |
-| CI (lint, types, tests on 3.10–3.13) + release on tags | done | Needs the GitHub repo + PyPI trusted publisher |
+| CI (lint, types, tests on 3.10–3.13, Linux/macOS/Windows) + release on tags | done | Tesseract installed on Linux so OCR tests run |
 
-### Open items before a first release
+## Phase 2: PDFs and OCR (done)
 
-- Register the `gleanly` name on PyPI (first release) and create the GitHub repository.
-- Set the real project URL in `config.PROJECT_URL` (it goes into the User-Agent).
-- A small real-world HTML fixture set for regression tests of the extractor.
+| Item | State | Notes |
+| --- | --- | --- |
+| Native PDFs (`[pdf]` extra, pypdfium2) | done | Headings by size/bold, lists, de-hyphenation, page + bbox provenance, PDF metadata |
+| Running headers/footers and page numbers learned across pages | done | |
+| OCR (`[ocr]` extra + Tesseract): images, image URLs, scanned PDF pages | done | `ocr`, `ocr_lang`, `tesseract_cmd` options; `QualityReport.ocr_confidence` |
+| OCR clean-up tuned on a generated benchmark (`bench/ocr.py`) | done | Held-out CER 16.1% (plain Tesseract) -> 0.77% |
+| PDF text layer vs OCR cross-check | done | Broken layers replaced by OCR; agreement = PDF `extraction_confidence` |
+| Tried and dropped | - | Layout self-check, confidence-guided re-OCR (no gain on the benchmark) |
+
+Known limits: blurred scans are the largest OCR error (~4% CER); handwriting, tables in
+scans and non-English OCR are not benchmarked yet; no public, license-clean corpus of
+broken PDFs exists to benchmark the text-layer check.
+
+### Open items before a first release (done by the maintainer)
+
+- Make the GitHub repository public (the User-Agent contact URL points to it).
+- Set up a PyPI trusted publisher and tag `v0.1.0a1` to register the `gleanly` name.
 
 ## Later phases
 
-See the roadmap in docs/roadmap.md: PDFs/OCR (2), `search()` (3), archives, crawling,
-learned routing, server mode and benchmark (4).
+See the roadmap in docs/roadmap.md: `search()` (3), archives, crawling, learned routing,
+server mode and trust-score calibration (4).
