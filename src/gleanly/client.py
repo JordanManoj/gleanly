@@ -478,7 +478,7 @@ class Client:
                 "raise max_bytes to read it."
             )
         ocr, ocr_problem = self._ocr_function()
-        pdf = read_pdf(data, ocr=ocr)
+        pdf = read_pdf(data, ocr=ocr, check_pages=self.options.pdf_check_pages)
         with_text = pdf.page_count - len(pdf.empty_pages)
         trace.steps.append(
             FetchStep(
@@ -499,6 +499,19 @@ class Client:
                         + (f"; {'; '.join(pdf.ocr_steps[:6])}" if pdf.ocr_steps else "")
                         if pdf.ocr_pages
                         else ocr_problem or "OCR found no text"
+                    ),
+                )
+            )
+        if pdf.checks:
+            trace.steps.append(
+                FetchStep(
+                    rung="text-check",
+                    url=url,
+                    ok=not any(c.used_ocr for c in pdf.checks),
+                    detail="; ".join(
+                        f"page {c.page} ({c.reason}): agreement with OCR {c.agreement:.2f}"
+                        + (", used OCR" if c.used_ocr else "")
+                        for c in pdf.checks
                     ),
                 )
             )
@@ -532,7 +545,14 @@ class Client:
                 f"{len(pdf.ocr_pages)} scanned page(s) were read with OCR; their blocks have "
                 "provenance kind 'image'."
             )
+        for c in pdf.checks:
+            if c.used_ocr:
+                notes.append(
+                    f"Page {c.page}: the PDF's text layer does not match what the page shows "
+                    f"(agreement with OCR {c.agreement:.2f}); the OCR text was used instead."
+                )
         readable = pdf.page_count - len(unread)
+        agreement, support, coverage = pdf.layer_check()
         return self._build(
             source=source,
             url=url,
@@ -549,6 +569,7 @@ class Client:
             extra_warnings=notes,
             score_factor=readable / pdf.page_count if pdf.page_count else 0.0,
             ocr_confidence=pdf.ocr_confidence,
+            confidence_override=(agreement, support, coverage) if agreement is not None else None,
         )
 
     def _ocr_function(self) -> tuple[Any, str | None]:
@@ -698,8 +719,11 @@ class Client:
         extra_warnings: list[str] | None = None,
         score_factor: float = 1.0,
         ocr_confidence: float | None = None,
+        confidence_override: tuple[float, float | None, float | None] | None = None,
     ) -> Document:
         check = cross_check(extraction, check_root)
+        if confidence_override is not None:  # e.g. PDF text layer checked against OCR
+            check.confidence, check.support, check.coverage = confidence_override
         for raw, support in zip(extraction.blocks, check.block_support, strict=True):
             raw.support = support
         markdown, blocks = assemble(extraction.blocks, url)

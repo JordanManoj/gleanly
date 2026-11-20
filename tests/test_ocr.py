@@ -10,7 +10,7 @@ from gleanly import load
 from gleanly.errors import UnsupportedSourceError
 from gleanly.ocr.tesseract import parse_tsv
 
-from .pdfmaker import Page, build_pdf, flow
+from .pdfmaker import Line, Page, build_pdf, flow
 
 PIL = pytest.importorskip("PIL")
 from PIL import Image, ImageChops, ImageDraw, ImageFont  # noqa: E402
@@ -65,8 +65,9 @@ def _page_image(shadow: bool = False) -> Image.Image:
     for i, line in enumerate(body):
         d.text((80, 220 + i * 70), line, font=_font(44), fill=0)
     if shadow:  # faint grey print on paper with a dark shadow across it
-        faint = img.point(lambda v: 140 + v * 100 // 255)
-        grad = Image.linear_gradient("L").rotate(90).resize(img.size).point(lambda v: 110 + v // 2)
+        faint = img.point([140 + v * 100 // 255 for v in range(256)])  # lookup tables
+        grad = Image.linear_gradient("L").rotate(90).resize(img.size)
+        grad = grad.point([110 + v // 2 for v in range(256)])
         img = ImageChops.multiply(faint, grad)
     return img
 
@@ -131,3 +132,59 @@ def test_corrupt_image_is_a_clear_error(tmp_path: Path) -> None:
     path.write_bytes(b"not an image")
     with pytest.raises(UnsupportedSourceError, match="Could not open the image"):
         load(str(path))
+
+
+# ------------------------------------------------- PDF text layer vs OCR cross-check
+REPORT = [
+    ("Harbour Report", 20, True),
+    (
+        "The harbour board met eleven times this year and approved two new berths for the "
+        "fishing fleet, which had been waiting since the storm of last winter. Income rose by "
+        "four per cent, mostly from mooring fees and the new fuel station on the east pier.",
+        11,
+        False,
+    ),
+]
+
+
+def test_broken_text_layer_is_replaced_by_ocr(tmp_path: Path) -> None:
+    _tesseract_or_skip()
+    path = tmp_path / "broken.pdf"
+    path.write_bytes(build_pdf([Page(flow(REPORT))], broken_unicode=True))  # "Uif ibscpvs"
+    doc = load(str(path))
+    assert "harbour board met eleven times" in doc.markdown
+    assert "ibscpvs" not in doc.markdown
+    assert {b.provenance.kind for b in doc.blocks} == {"image"}
+    assert any("text layer does not match" in w for w in doc.quality.warnings)
+    step = next(s for s in doc.fetch_trace.steps if s.rung == "text-check")
+    assert "suspicious text" in (step.detail or "")
+    assert "used OCR" in (step.detail or "")
+
+
+def test_good_text_layer_is_confirmed(tmp_path: Path) -> None:
+    _tesseract_or_skip()
+    path = tmp_path / "good.pdf"
+    path.write_bytes(build_pdf([Page(flow(REPORT))]))
+    doc = load(str(path))
+    assert {b.provenance.kind for b in doc.blocks} == {"pdf"}  # the layer is kept
+    conf = doc.quality.extraction_confidence
+    assert conf is not None
+    assert conf > 0.85  # sampled page agrees with OCR
+    assert not any("does not match" in w for w in doc.quality.warnings)
+
+
+def test_bad_hidden_ocr_layer_on_a_scan_is_replaced(tmp_path: Path) -> None:
+    _tesseract_or_skip()
+    img = Image.new("RGB", (1275, 1650), "white")  # the visible scan
+    img.paste(_page_image().resize((1200, 525)).convert("RGB"), (40, 60))
+    hidden = [  # an old, poor OCR layer: plausible-looking but wrong words
+        Line("Hanbor Repont", 72, 700, 11, invisible=True),
+        Line("Tlie bnard rnet elcvcn tirnes tliis yeur arid approvcd", 72, 680, 11, invisible=True),
+        Line("lwo ncw bcrtlis for tlic flshing flcct in tlie nortli", 72, 666, 11, invisible=True),
+    ]
+    path = tmp_path / "scan_with_bad_ocr.pdf"
+    path.write_bytes(build_pdf([Page(hidden, image=(img.width, img.height, img.tobytes()))]))
+    doc = load(str(path))
+    assert "approved two new berths" in doc.markdown
+    assert "rnet" not in doc.markdown
+    assert any("text layer does not match" in w for w in doc.quality.warnings)

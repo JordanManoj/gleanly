@@ -24,9 +24,36 @@ gleanly load https://example.com/article -o article.md
 gleanly load https://example.com/article -o article.json   # full Document as JSON
 ```
 
+## PDFs, scans and images
+
+```bash
+pip install "gleanly[pdf]"   # native PDFs
+pip install "gleanly[ocr]"   # + OCR; also install Tesseract (github.com/tesseract-ocr/tesseract)
+```
+
+```python
+doc = load("report.pdf")          # or "scan.jpg", or a URL serving either
+doc.blocks[3].provenance          # kind="pdf" (text layer) or "image" (OCR), page, bbox
+doc.quality.ocr_confidence        # Tesseract's word confidence, when OCR was used
+doc.quality.extraction_confidence # PDFs: agreement between the text layer and OCR
+```
+
+What gleanly adds on top of plain PDF text extraction and Tesseract:
+
+- Headings, lists and re-joined hyphenation; running headers, footers and page numbers
+  learned across pages and removed.
+- Scanned pages inside a PDF are OCR'd automatically.
+- **Text-layer check:** pages whose hidden text looks broken, plus a small sample, are
+  compared with OCR; a layer that does not match the page (a wrong font map, a poor old
+  OCR layer) is replaced and the page is named in a warning.
+- OCR clean-up tuned on a benchmark: 0.77% characters wrong on held-out pages against
+  16.1% for plain Tesseract, mostly by fixing shadows, faint print and phone photos
+  ([bench/README.md](bench/README.md)).
+
 ## Status
 
-Phase 1 (web pages) is in progress. See [docs/status.md](docs/status.md).
+Phase 1 (web pages) is done; Phase 2 (PDFs and OCR) is nearly done. See
+[docs/status.md](docs/status.md).
 
 | Capability | Status |
 | --- | --- |

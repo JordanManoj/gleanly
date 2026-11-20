@@ -144,7 +144,8 @@ async def test_pdf_from_url_with_ai_txt_rule(mock_http: respx.MockRouter, ctype:
     assert doc.blocks[0].text == "# Annual Report"
     assert doc.compliance.ai_txt_allowed is False  # "*.pdf" applies to a PDF without .pdf
     assert doc.compliance.ai_use == "disallowed"
-    assert [s.rung for s in doc.fetch_trace.steps][-2:] == ["http", "pdf"]
+    rungs = [s.rung for s in doc.fetch_trace.steps]
+    assert rungs.index("http") < rungs.index("pdf")  # a text-check may follow with OCR
 
 
 @pytest.mark.parametrize(
@@ -153,3 +154,32 @@ async def test_pdf_from_url_with_ai_txt_rule(mock_http: respx.MockRouter, ctype:
 )
 def test_pdf_date(raw: str, expected: str | None) -> None:
     assert pdf_date(raw) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "ok"),
+    [
+        ("The harbour board met eleven times this year and approved two new berths. " * 4, True),
+        ("Uif ibscpvs cpbse nfu fmfwfo ujnft uijt zfbs boe bqqspwfe uxp ofx cfsuit. " * 4, False),
+        ("Revenue 2024 2025 12.4 13.1 Costs 8.2 8.4 Staff 120 118 Ships 14 15 " * 3, True),
+        ("Die Hafenbehörde tagte elfmal und genehmigte zwei neue Liegeplätze. " * 4, True),
+        ("qwrtz xkcd bfgh mnbv plkj trwq zxcv", False),
+        ("  �� text", False),
+    ],
+)
+def test_text_layer_plausibility(text: str, ok: bool) -> None:
+    from gleanly.pdf.check import WORDLIKE_MIN, plausibility
+
+    assert (plausibility(text) >= WORDLIKE_MIN) is ok
+
+
+def test_compare_support_and_coverage() -> None:
+    from gleanly.pdf.check import compare
+    from gleanly.pdf.layout import Word
+
+    def words(text: str) -> list[Word]:
+        return [Word(t, 0, 0, 1, 1, 10) for t in text.split()]
+
+    support, coverage = compare(words("the board met"), words("the board met again today"))
+    assert support == 1.0
+    assert coverage == 0.6

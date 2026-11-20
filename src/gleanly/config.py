@@ -49,6 +49,13 @@ class LoadOptions(BaseModel):
         description="Tesseract language(s), e.g. 'eng' or 'eng+deu'. The language data "
         "must be installed.",
     )
+    pdf_check_pages: int = Field(
+        default=2,
+        ge=0,
+        description="With OCR available, how many PDF pages with a text layer to check "
+        "against OCR as a sample (pages whose text looks broken are always checked). The "
+        "agreement becomes the document's extraction_confidence. 0 = only suspicious pages.",
+    )
     tesseract_cmd: str | None = Field(
         default=None,
         description="Path to the tesseract executable if it is not on PATH or in the "

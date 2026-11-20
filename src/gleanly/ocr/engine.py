@@ -9,6 +9,9 @@ Steps, each kept only because it lowered the character error rate on ``bench.ocr
    pages are measured correctly): 2.3% -> 1.4%;
 3. Tesseract with automatic page segmentation.
 
+Tried and dropped (no gain on the benchmark): a layout self-check, and re-reading
+low-confidence lines enlarged and sharpened (blur errors are confident misreadings).
+
 Word boxes are returned in the coordinates of the original image, or in other units
 (e.g. PDF points) when a ``scale`` is given.
 """
@@ -52,10 +55,12 @@ def ocr_image(
     gray, factor = normalise_scale(gray)
     if factor != 1.0:
         steps.append(f"rescaled x{factor:.2f}")
-    result = run_tesseract(gray, lang=lang, cmd=cmd, scale=scale / factor)
-    for w in result.words:
-        w.size = round(w.size, 1)
-    return OcrResult(result.words, image.width * scale, image.height * scale, steps)
+    words = run_tesseract(gray, lang=lang, cmd=cmd).words  # processed-image pixels
+    unit = scale / factor  # processed pixels -> output units
+    for w in words:
+        w.x0, w.x1, w.top, w.bottom = w.x0 * unit, w.x1 * unit, w.top * unit, w.bottom * unit
+        w.size = round(w.size * unit, 1)
+    return OcrResult(words, image.width * scale, image.height * scale, steps)
 
 
 __all__ = ["OcrResult", "ocr_image"]

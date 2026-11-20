@@ -172,7 +172,8 @@ class ComplianceInfo(_Model):
 
 class FetchStep(_Model):
     rung: str = Field(
-        description="robots | tdmrep | ai.txt | http | embedded | browser | file | pdf | ocr"
+        description="robots | tdmrep | ai.txt | http | embedded | browser | file | pdf | ocr "
+        "| text-check"
     )
     url: str | None = None
     ok: bool

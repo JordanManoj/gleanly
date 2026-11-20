@@ -287,3 +287,26 @@ fragmented). It fixed the split-column pages but misfired on skewed pages and ph
 Known costs: fax-quality text is upscaled about 2.4x, which costs ~1% CER there; and OCR
 confidence ranks pages a little less sharply (Spearman with 1-CER 0.52 -> 0.39) because
 far fewer pages fail. Blur is the largest remaining error (4.2%).
+
+Also tried and dropped: **confidence-guided re-OCR** (lines under 0.80 confidence cropped,
+enlarged 2x, sharpened, stacked and read again; a new reading kept only if clearly more
+confident and of similar length). Dev CER 1.38% -> 1.37% at +20% time: the blur errors are
+confident misreadings, so a confidence trigger rarely fires on them.
+
+## PDF text layer vs OCR (2026-11-20)
+
+Many PDFs carry a text layer that does not match the page: fonts with a wrong character
+map extract as gibberish ("Uif" for "The"), and old scans carry poor invisible OCR. With
+OCR available, gleanly checks pages whose text looks implausible (few word-like tokens,
+almost no common function words, replacement/private-use characters) plus a sample of
+`pdf_check_pages` (default 2) other pages. It compares the layer's words with OCR's:
+support (layer words OCR also read), coverage (OCR words the layer has), agreement =
+support x sqrt(coverage), the same form as the HTML cross-check. Below 0.5 agreement with
+confident OCR (>= 0.6) the page's text is replaced by OCR and a warning names the page.
+The agreement of the pages that keep their layer becomes the PDF's
+`extraction_confidence`, so PDFs get a measured confidence like web pages.
+
+Tested with generated PDFs (`tests/test_ocr.py`): a shifted character map and a scan with
+a poor hidden OCR layer are both replaced; a correct layer is kept with confidence > 0.85.
+There is no public, license-clean corpus of broken PDFs to benchmark this on yet.
+

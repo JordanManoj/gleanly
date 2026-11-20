@@ -21,6 +21,7 @@ class Line:
     y: float  # baseline, from the bottom of the page
     size: float = 11
     bold: bool = False
+    invisible: bool = False  # text render mode 3, like the hidden OCR layer of a scan
 
 
 @dataclass
@@ -35,14 +36,39 @@ def _escape(text: str) -> bytes:
     return raw.replace(b"\\", b"\\\\").replace(b"(", b"\\(").replace(b")", b"\\)")
 
 
-def build_pdf(pages: list[Page], *, title: str | None = None, author: str | None = None) -> bytes:
+def _shifted_cmap() -> bytes:
+    """A ToUnicode map that reports every printable character as the next one ("Uif")."""
+    body = (
+        b"/CIDInit /ProcSet findresource begin 12 dict begin begincmap\n"
+        b"/CMapName /Shifted def /CMapType 2 def\n"
+        b"1 begincodespacerange <00> <FF> endcodespacerange\n"
+        b"1 beginbfrange <21> <7D> <0022> endbfrange\n"
+        b"endcmap CMapName currentdict /CMap defineresource pop end end"
+    )
+    return b"<< /Length %d >>\nstream\n%s\nendstream" % (len(body), body)
+
+
+def build_pdf(
+    pages: list[Page],
+    *,
+    title: str | None = None,
+    author: str | None = None,
+    broken_unicode: bool = False,
+) -> bytes:
+    """``broken_unicode``: the regular font extracts as shifted gibberish but looks right."""
     objs: list[bytes] = []
 
     def add(body: bytes) -> int:
         objs.append(body)
         return len(objs)
 
-    font = add(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>")
+    to_unicode = b""
+    if broken_unicode:
+        to_unicode = b" /ToUnicode %d 0 R" % add(_shifted_cmap())
+    font = add(
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding%s >>"
+        % to_unicode
+    )
     bold = add(
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>"
     )
@@ -65,9 +91,10 @@ def build_pdf(pages: list[Page], *, title: str | None = None, author: str | None
             ops.append(b"q %d 0 0 %d 0 0 cm /Im1 Do Q" % (PAGE_W, PAGE_H))
         for ln in page.lines:
             f = b"/F2" if ln.bold else b"/F1"
+            mode = b"3 Tr " if ln.invisible else b""
             ops.append(
-                b"BT %s %.1f Tf %.1f %.1f Td (%s) Tj ET"
-                % (f, ln.size, ln.x, ln.y, _escape(ln.text))
+                b"BT %s%s %.1f Tf %.1f %.1f Td (%s) Tj ET"
+                % (mode, f, ln.size, ln.x, ln.y, _escape(ln.text))
             )
         stream = b"\n".join(ops)
         content = add(b"<< /Length %d >>\nstream\n%s\nendstream" % (len(stream), stream))

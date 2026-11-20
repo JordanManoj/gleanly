@@ -14,6 +14,7 @@ from typing import Any, Protocol
 
 from gleanly.clean.html import Extraction, RawBlock
 from gleanly.errors import UnsupportedSourceError
+from gleanly.pdf.check import PageCheck, compare, should_replace, suspicious
 from gleanly.pdf.layout import PageText, Word, layout
 
 # A page with fewer visible characters than this has no usable text layer (likely a scan).
@@ -28,9 +29,22 @@ class PdfText:
     pages: list[PageText]
     empty_pages: list[int] = field(default_factory=list)  # 1-based pages with no text layer
     info: dict[str, str] = field(default_factory=dict)
-    ocr_pages: list[int] = field(default_factory=list)  # empty pages that OCR filled in
+    ocr_pages: list[int] = field(default_factory=list)  # pages whose text came from OCR
     ocr_confidence: float | None = None
     ocr_steps: list[str] = field(default_factory=list)
+    checks: list[PageCheck] = field(default_factory=list)  # text layer vs OCR, per page
+
+    def layer_check(self) -> tuple[float | None, float | None, float | None]:
+        """(agreement, support, coverage) over checked pages that kept their text layer.
+
+        Pages switched to OCR are not counted: their text no longer comes from the layer.
+        """
+        kept = [c for c in self.checks if not c.used_ocr]
+        if not kept:
+            return None, None, None
+        support = sum(c.support for c in kept) / len(kept)
+        coverage = sum(c.coverage for c in kept) / len(kept)
+        return round(support * coverage**0.5, 3), round(support, 3), round(coverage, 3)
 
 
 class OcrConfidence:
@@ -153,7 +167,28 @@ def pdf_date(value: str | None) -> str | None:
     return "-".join(part for part in m.groups() if part)
 
 
-def read_pdf(data: bytes, *, password: str | None = None, ocr: PageOcr | None = None) -> PdfText:
+def _sample(candidates: list[int], n: int) -> list[int]:
+    """Up to n pages spread evenly over the candidates (first, middle, last, ...)."""
+    if n <= 0 or not candidates:
+        return []
+    if len(candidates) <= n:
+        return list(candidates)
+    step = (len(candidates) - 1) / max(n - 1, 1)
+    return sorted({candidates[round(i * step)] for i in range(n)})
+
+
+def read_pdf(
+    data: bytes,
+    *,
+    password: str | None = None,
+    ocr: PageOcr | None = None,
+    check_pages: int = 2,
+) -> PdfText:
+    """Read the text layer; with ``ocr``, also OCR scanned pages and check the layer.
+
+    ``check_pages``: how many pages with a text layer to cross-check against OCR as a
+    sample (suspicious-looking pages are always checked when OCR is available).
+    """
     pdfium = _pdfium()
     try:
         pdf = pdfium.PdfDocument(data, password=password)
@@ -162,36 +197,65 @@ def read_pdf(data: bytes, *, password: str | None = None, ocr: PageOcr | None = 
     try:
         pages: list[PageText] = []
         empty: list[int] = []
-        ocr_pages: list[int] = []
-        ocr_words: list[Word] = []
-        ocr_notes: list[str] = []
         for i in range(len(pdf)):
             page = pdf[i]
-            kind = "pdf"
             try:
                 width, height = page.get_size()
                 words = _page_words(page, height)
-                if sum(len(w.text) for w in words) < MIN_PAGE_CHARS:
-                    empty.append(i + 1)
-                    if ocr is not None:
-                        image = page.render(scale=OCR_DPI / 72).to_pil()
-                        result = ocr(image, 72 / OCR_DPI)
-                        if result.words:
-                            words, kind = result.words, "image"
-                            ocr_pages.append(i + 1)
-                            ocr_words += result.words
-                            ocr_notes += [f"page {i + 1}: {s}" for s in result.steps]
             finally:
                 page.close()
-            pages.append(PageText(i + 1, width, height, words, kind=kind))
+            if sum(len(w.text) for w in words) < MIN_PAGE_CHARS:
+                empty.append(i + 1)
+            pages.append(PageText(i + 1, width, height, words, kind="pdf"))
         info = _info(pdf)
+
+        ocr_pages: list[int] = []
+        ocr_words: list[Word] = []
+        ocr_notes: list[str] = []
+        checks: list[PageCheck] = []
+        if ocr is not None:
+            with_text = [p.number for p in pages if p.number not in empty]
+            odd = [n for n in with_text if suspicious(pages[n - 1].words)]
+            sampled = _sample([n for n in with_text if n not in odd], check_pages)
+            todo = sorted({*empty, *odd, *sampled})
+            for number in todo:
+                page = pdf[number - 1]
+                try:
+                    image = page.render(scale=OCR_DPI / 72).to_pil()
+                finally:
+                    page.close()
+                result = ocr(image, 72 / OCR_DPI)
+                pt = pages[number - 1]
+                if number in empty:
+                    if result.words:
+                        pt.words, pt.kind = result.words, "image"
+                        ocr_pages.append(number)
+                        ocr_words += result.words
+                        ocr_notes += [f"page {number}: {s}" for s in result.steps]
+                    continue
+                support, coverage = compare(pt.words, result.words)
+                check = PageCheck(
+                    number,
+                    round(support, 3),
+                    round(coverage, 3),
+                    OcrConfidence.of(result.words),
+                    reason="suspicious text" if number in odd else "sample",
+                )
+                if should_replace(check):
+                    pt.words, pt.kind = result.words, "image"
+                    check.used_ocr = True
+                    ocr_pages.append(number)
+                    ocr_words += result.words
+                checks.append(check)
     finally:
         pdf.close()
     blocks: list[RawBlock] = layout(pages, kind="pdf")
     total_chars = sum(len(w.text) + 1 for p in pages for w in p.words)
     extraction = Extraction(blocks, "pdf", page_chars=total_chars)
     ocr_conf = OcrConfidence.of(ocr_words)
-    return PdfText(extraction, len(pages), pages, empty, info, ocr_pages, ocr_conf, ocr_notes)
+    return PdfText(
+        extraction, len(pages), pages, empty, info, sorted(ocr_pages), ocr_conf, ocr_notes, checks
+    )
 
 
 __all__ = ["PdfText", "pdf_date", "read_pdf"]
