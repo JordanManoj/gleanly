@@ -32,10 +32,10 @@ pip install "gleanly[ocr]"   # + OCR; also install Tesseract (github.com/tessera
 ```
 
 ```python
-doc = load("report.pdf")          # or "scan.jpg", or a URL serving either
-doc.blocks[3].provenance          # kind="pdf" (text layer) or "image" (OCR), page, bbox
-doc.quality.ocr_confidence        # Tesseract's word confidence, when OCR was used
-doc.quality.extraction_confidence # PDFs: agreement between the text layer and OCR
+doc = load("report.pdf")  # or "scan.jpg", or a URL serving either
+doc.blocks[3].provenance  # kind="pdf" (text layer) or "image" (OCR), page, bbox
+doc.quality.ocr_confidence  # Tesseract's word confidence, when OCR was used
+doc.quality.extraction_confidence  # PDFs: agreement between the text layer and OCR
 ```
 
 What gleanly adds on top of plain PDF text extraction and Tesseract:
