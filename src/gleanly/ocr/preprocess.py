@@ -18,7 +18,10 @@ if TYPE_CHECKING:
 
 # Text-line height (pixels, as measured by line_height) that Tesseract reads best.
 TARGET_LINE_PX = 26  # chosen on bench.ocr dev: 18, 22, 32 were worse
-MIN_SCALE, MAX_SCALE = 0.25, 3.0
+# Only shrink: enlarging broke ruled tables and cost accuracy on fax-quality pages
+# (bench.ocr dev, both suites: mean CER 3.0% -> 1.3%). Open item: clean 300 dpi Courier
+# pages read worse unscaled (1.8% -> 7.5%).
+MIN_SCALE, MAX_SCALE = 0.25, 1.0
 
 
 def to_gray(img: Image.Image) -> Image.Image:
@@ -27,7 +30,21 @@ def to_gray(img: Image.Image) -> Image.Image:
     if img.mode in ("RGBA", "LA", "P"):
         background = PILImage.new("RGBA", img.size, (255, 255, 255, 255))
         img = PILImage.alpha_composite(background, img.convert("RGBA"))
-    return img.convert("L")
+    gray = img.convert("L")
+    if _mean(gray) < DARK_PAGE:  # light text on a dark page: make it dark on light
+        from PIL import ImageOps
+
+        gray = ImageOps.invert(gray)
+    return gray
+
+
+DARK_PAGE = 100  # mean brightness below this = light text on a dark background
+
+
+def _mean(gray: Image.Image) -> float:
+    small = gray.resize((max(1, gray.width // 8), max(1, gray.height // 8)))
+    data = small.tobytes()
+    return sum(data) / len(data) if data else 255.0
 
 
 def flatten_background(gray: Image.Image) -> Image.Image:
@@ -45,19 +62,28 @@ def flatten_background(gray: Image.Image) -> Image.Image:
 STRIPS = 6  # narrow vertical strips used to measure line height
 
 
+SOLID_ROW = 0.25  # a row this dark across a whole strip is a ruling line, not text
+MIN_RUN = 4  # shorter runs are noise or thin rules
+
+
 def _runs(column: list[int]) -> list[int]:
-    """Lengths of runs of rows that contain ink in one strip's row profile."""
+    """Lengths of runs of rows that contain ink in one strip's row profile.
+
+    Solid rows (table rules, underlines, borders) end a run instead of extending it:
+    otherwise a ruled table looks like 3 px "text" and gets blown up far too much.
+    """
     paper = statistics.median(column) if column else 255
+    solid = paper * SOLID_ROW
     runs, n = [], 0
     for v in column:
-        if v < paper - 4:
+        if solid < v < paper - 4:
             n += 1
         elif n:
             runs.append(n)
             n = 0
     if n:
         runs.append(n)
-    return [r for r in runs if r >= 3]
+    return [r for r in runs if r >= MIN_RUN]
 
 
 def line_height(gray: Image.Image) -> float | None:

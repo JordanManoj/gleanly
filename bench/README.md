@@ -310,3 +310,38 @@ Tested with generated PDFs (`tests/test_ocr.py`): a shifted character map and a 
 a poor hidden OCR layer are both replaced; a correct layer is kept with confidence > 0.85.
 There is no public, license-clean corpus of broken PDFs to benchmark this on yet.
 
+### OCR against a strong open engine, and a hard suite (2026-11-21)
+
+Goal: accuracy on par with the best paid OCR, free. So gleanly is now measured against
+**RapidOCR** (PaddleOCR's PP-OCRv6 models on ONNX Runtime, Apache-2.0; bench group only),
+not only against plain Tesseract.
+
+Standard suite, held-out test split (120 images):
+
+| | plain Tesseract | gleanly | RapidOCR |
+| --- | --- | --- | --- |
+| mean CER | 16.1% | **0.8%** | 5.1% |
+| blur | 6.3% | 4.2% | **2.6%** |
+| phone photo | 61.4% | **0.2%** | 1.8% |
+| clean 300 dpi | 2.3% | **0.0%** | 9.5% (drops words in long lines of wide fonts) |
+| time per image (4 parallel) | 0.36 s | 0.48 s | 2.5 s |
+| Spearman(confidence, accuracy) | 0.52 | 0.38 | **0.78** |
+
+A **hard suite** (`--suite hard`, `bench/ocr_hard.py`) adds small print, two columns, a
+ruled table, white-on-dark text, colour, a perspective photo and a cheap scan. Its first
+held-out run found two gleanly bugs (table 97.7% CER, white-on-dark 17.2%) where plain
+Tesseract was fine; RapidOCR mixed the two columns (68.8%). Fixed:
+
+- solid rows (table rules, borders) no longer count as text lines when measuring text size;
+- mostly dark pages are inverted before clean-up;
+- images are only shrunk, never enlarged (dev, both suites, 30 images per condition:
+  mean CER 3.0% -> 1.3%; table 32.6% -> 0%). Open item: clean 300 dpi Courier pages read
+  worse unscaled (1.8% -> 7.5%); a small enlargement cap (1.3-1.4x) is to be tested.
+
+The held-out hard-suite numbers after these fixes are still to be measured (runs were
+stopped by low memory on the development laptop).
+
+Next idea: run both engines where it matters and cross-check them word by word (gleanly's
+method for web pages and PDF text layers); RapidOCR's confidence is much better calibrated
+and it is stronger on blur, Tesseract+clean-up is stronger elsewhere.
+

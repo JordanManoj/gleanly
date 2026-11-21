@@ -21,6 +21,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
@@ -143,18 +144,23 @@ def _jpeg(img: Image.Image, quality: int) -> Image.Image:
 
 
 def _noise(img: Image.Image, sigma: float, amount: float) -> Image.Image:
-    noise = Image.effect_noise(img.size, sigma)
+    """Seeded noise, so every run sees the same images (Pillow's effect_noise is not)."""
+    rng = random.Random(f"noise-{img.size}")
+    raw = bytes(
+        max(0, min(255, round(rng.gauss(128, sigma)))) for _ in range(img.width * img.height)
+    )
+    noise = Image.frombytes("L", img.size, raw)
     return Image.blend(img, noise, amount)
 
 
 def _lighting(img: Image.Image) -> Image.Image:
     grad = Image.linear_gradient("L").rotate(35, expand=False).resize(img.size)
-    grad = grad.point(lambda v: 150 + v * 105 // 255)  # 150..255: a shadow across the page
+    grad = grad.point([150 + v * 105 // 255 for v in range(256)])  # 150..255: a shadow
     return ImageChops.multiply(img, grad)
 
 
 def _faint(img: Image.Image) -> Image.Image:
-    return img.point(lambda v: 150 + v * 80 // 255)  # grey text on light grey paper
+    return img.point([150 + v * 80 // 255 for v in range(256)])  # grey text, grey paper
 
 
 def _rotate(img: Image.Image, deg: float) -> Image.Image:
@@ -251,7 +257,40 @@ def variants() -> dict[str, OcrFn]:
         out["gleanly"] = gleanly
     except ImportError:
         pass
+    rapid = _rapidocr()
+    if rapid is not None:
+        out["rapidocr"] = rapid
     return out
+
+
+def _rapidocr() -> OcrFn | None:
+    """RapidOCR (PaddleOCR PP-OCR models on ONNX Runtime, Apache-2.0): a strong open
+    deep-learning engine to compare against. Bench dependency group only."""
+    try:
+        import logging
+        import threading
+
+        from rapidocr import RapidOCR
+    except ImportError:
+        return None
+    logging.getLogger("RapidOCR").setLevel(logging.WARNING)
+    local = threading.local()
+
+    def run(img: Image.Image) -> tuple[str, float | None]:
+        engine = getattr(local, "engine", None)
+        if engine is None:
+            engine = local.engine = RapidOCR()
+        r: Any = engine(img.convert("RGB"))
+        if not r.txts:
+            return "", None
+        # RapidOCR already returns lines in reading order (re-sorting broke skewed pages).
+        txts = [str(t) for t in r.txts]
+        scores = [float(s) for s in r.scores]
+        chars = sum(len(t) for t in txts)
+        conf = sum(s * len(t) for t, s in zip(txts, scores, strict=True)) / chars if chars else None
+        return "\n".join(txts), conf
+
+    return run
 
 
 def _words_text(words: list) -> str:  # type: ignore[type-arg]
@@ -269,16 +308,28 @@ def _words_text(words: list) -> str:  # type: ignore[type-arg]
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="bench.ocr")
     parser.add_argument("--split", default="dev", choices=["all", "dev", "test"])
+    parser.add_argument(
+        "--suite",
+        default="standard",
+        choices=["standard", "hard"],
+        help="standard: 8 scan conditions; hard: layouts and conditions where engines differ",
+    )
     parser.add_argument("-v", "--variants", help="Comma-separated subset (plain, gleanly).")
     parser.add_argument("-j", "--jobs", type=int, default=4, help="Parallel Tesseract runs.")
     args = parser.parse_args(argv)
 
-    data = samples(args.split)
+    if args.suite == "hard":
+        from bench.ocr_hard import hard_samples
+
+        data = hard_samples(args.split)
+    else:
+        data = samples(args.split)
+    conditions = list(dict.fromkeys(s.condition for s in data))
     fns = variants()
     if args.variants:
         fns = {k: v for k, v in fns.items() if k in args.variants.split(",")}
     print(f"{len(data)} images ({args.split}): {PAGES} texts x {len(FONTS)} fonts x "
-          f"{len(CONDITIONS)} conditions, split by text")  # fmt: skip
+          f"{len(conditions)} conditions ({args.suite}), split by text")  # fmt: skip
     results: dict[str, list[tuple[Sample, float, float, float | None]]] = {}
     for name, fn in fns.items():
         start = time.perf_counter()
@@ -296,7 +347,7 @@ def main(argv: list[str] | None = None) -> int:
     names = list(results)
     head = "".join(f"{n:>10}" for n in names)
     print(f"\nCER by condition (lower is better)\n{'condition':16}{head}")
-    for cond in CONDITIONS:
+    for cond in conditions:
         cells = "".join(
             f"{statistics.fmean(c for s, c, _, _ in results[n] if s.condition == cond):>10.3f}"
             for n in names

@@ -63,6 +63,8 @@ dev = [
 bench = [
     "trafilatura>=2.0",
     "readability-lxml>=0.8",
+    "rapidocr>=3.0",
+    "onnxruntime>=1.18",
 ]
 
 [tool.hatch.version]
