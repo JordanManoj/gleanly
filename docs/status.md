@@ -43,7 +43,18 @@ broken PDFs exists to benchmark the text-layer check.
 - Make the GitHub repository public (the User-Agent contact URL points to it).
 - Set up a PyPI trusted publisher and tag `v0.1.0a1` to register the `gleanly` name.
 
+## Phase 3: search (in progress)
+
+| Item | State | Notes |
+| --- | --- | --- |
+| `search` / `asearch` / `gleanly search`, `SearchResponse` model | done | Every result is a full `Document` |
+| Backends: Wikipedia (keyless), Brave (`BRAVE_API_KEY`), SearXNG (`SEARXNG_URL`) | done | Official APIs only |
+| Reciprocal rank fusion with URL normalisation | done | Pages several engines agree on rank higher |
+| Ranking v0: relevance + fusion, weighted by trust; `exclude_disallowed` | done | Hand-set weights; benchmark next |
+| Search benchmark, tuned ranking | next | |
+| Claim-level agreement between sources | planned | |
+
 ## Later phases
 
-See the roadmap in docs/roadmap.md: `search()` (3), archives, crawling, learned routing,
-server mode and trust-score calibration (4).
+See the roadmap in docs/roadmap.md: archives, crawling, learned routing, server mode and
+trust-score calibration (4).

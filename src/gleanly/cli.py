@@ -1,4 +1,4 @@
-"""Command line: ``gleanly load URL -o out.md``."""
+"""Command line: ``gleanly load URL -o out.md`` and ``gleanly search "query"``."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from pathlib import Path
 from gleanly.__about__ import __version__
 from gleanly.errors import AcquisitionError, FetchError
 from gleanly.loader import load
+from gleanly.models import SearchResponse
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -53,7 +54,68 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Fetch even if robots.txt disallows it. Only use with the site owner's permission.",
     )
+
+    s = sub.add_parser("search", help="Search the web; every result is fetched and scored.")
+    s.add_argument("query")
+    s.add_argument("-n", "--max-results", type=int, default=5)
+    s.add_argument(
+        "-b",
+        "--backend",
+        action="append",
+        choices=["wikipedia", "brave", "searxng"],
+        help="Repeat to use several (default: every backend configured here).",
+    )
+    s.add_argument(
+        "--exclude-disallowed", action="store_true", help="Drop pages whose AI use is disallowed."
+    )
+    s.add_argument("--no-fetch", action="store_true", help="Only list hits; do not fetch pages.")
+    s.add_argument("-f", "--format", choices=["md", "json"], default="md")
+    s.add_argument("-o", "--output", help="Write to this file instead of stdout.")
     return parser
+
+
+def _search_markdown(resp: SearchResponse) -> str:
+    lines = [f"# Search: {resp.query}", ""]
+    for i, r in enumerate(resp.results, 1):
+        title = (r.document.metadata.title if r.document else None) or r.hit.title or r.hit.url
+        lines.append(f"## {i}. {title}")
+        lines.append(f"<{r.hit.url}>")
+        found_by = ", ".join(f"{e} #{r.hit.ranks[e]}" for e in r.hit.engines)
+        facts = [f"score {r.score:.2f}", f"found by {found_by}"]
+        if r.document is not None:
+            q, c = r.document.quality, r.document.compliance
+            facts += [f"trust {q.score:.2f}", f"AI use: {c.ai_use}"]
+        elif r.error:
+            facts.append(f"not fetched: {r.error}")
+        lines.append(" | ".join(facts))
+        if r.hit.snippet:
+            lines.append(f"> {r.hit.snippet}")
+        lines.append("")
+    return "\n".join(lines)
+
+
+def _run_search(args: argparse.Namespace) -> int:
+    from gleanly.search import search
+
+    resp = search(
+        args.query,
+        backends=args.backend,
+        max_results=args.max_results,
+        fetch=not args.no_fetch,
+        exclude_disallowed=args.exclude_disallowed,
+    )
+    out = resp.model_dump_json(indent=2) if args.format == "json" else _search_markdown(resp)
+    if args.output:
+        Path(args.output).write_text(out + "\n", encoding="utf-8")
+    else:
+        sys.stdout.write(out + "\n")
+    print(
+        f"{len(resp.results)} results from {', '.join(resp.backends) or 'no backend'}",
+        file=sys.stderr,
+    )
+    for warning in resp.warnings:
+        print(f"warning: {warning}", file=sys.stderr)
+    return 0 if resp.backends else 1
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -62,6 +124,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is not None:
             reconfigure(encoding="utf-8")
+
+    if args.command == "search":
+        return _run_search(args)
 
     fmt = args.format or ("json" if (args.output or "").endswith(".json") else "md")
     try:

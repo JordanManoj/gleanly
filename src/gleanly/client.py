@@ -139,6 +139,11 @@ class Client:
         self._aitxt = aitxt.AiTxtCache(self._http)
         self._limiter = DomainRateLimiter(opts.min_delay)
 
+    @property
+    def http(self) -> httpx.AsyncClient:
+        """The shared HTTP client (honest User-Agent, timeouts), e.g. for search backends."""
+        return self._http
+
     async def aclose(self) -> None:
         if self._owns_http:
             await self._http.aclose()

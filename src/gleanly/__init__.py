@@ -1,9 +1,10 @@
 """All-in-one text acquisition for AI: URL/file -> clean Markdown with quality,
-compliance and provenance metadata.
+compliance and provenance metadata; web search with the same on every result.
 
-    >>> from gleanly import load
+    >>> from gleanly import load, search
     >>> doc = load("https://example.com")
     >>> doc.markdown, doc.quality.score, doc.compliance.ai_use
+    >>> results = search("tide pools", backends=["wikipedia"])
 """
 
 from gleanly.__about__ import __version__
@@ -27,7 +28,11 @@ from gleanly.models import (
     Metadata,
     Provenance,
     QualityReport,
+    SearchHit,
+    SearchResponse,
+    SearchResult,
 )
+from gleanly.search import asearch, search
 
 __all__ = [
     "AcquisitionError",
@@ -45,8 +50,13 @@ __all__ = [
     "Provenance",
     "QualityReport",
     "RobotsDisallowed",
+    "SearchHit",
+    "SearchResponse",
+    "SearchResult",
     "UnsupportedSourceError",
     "__version__",
     "aload",
+    "asearch",
     "load",
+    "search",
 ]

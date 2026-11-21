@@ -203,3 +203,43 @@ class Document(_Model):
     compliance: ComplianceInfo = Field(default_factory=ComplianceInfo)
     fetch_trace: FetchTrace = Field(default_factory=FetchTrace)
     fetched_at: datetime = Field(default_factory=_now)
+
+
+# ----------------------------------------------------------------------------- search
+class SearchHit(_Model):
+    """One result as the search engines returned it, before fetching."""
+
+    url: str
+    title: str = ""
+    snippet: str = ""
+    engines: list[str] = Field(default_factory=list, description="Backends that returned this URL.")
+    ranks: dict[str, int] = Field(
+        default_factory=dict, description="1-based rank of this URL in each backend's list."
+    )
+    fused_score: float = Field(
+        default=0.0, description="Reciprocal-rank-fusion score across backends (higher = better)."
+    )
+
+
+class SearchResult(_Model):
+    """A search hit, fetched and cleaned like any other source."""
+
+    hit: SearchHit
+    document: Document | None = Field(
+        default=None, description="The fetched page (Markdown, quality, compliance, provenance)."
+    )
+    error: str | None = Field(default=None, description="Why the page could not be fetched.")
+    relevance: float | None = Field(
+        default=None, ge=0.0, le=1.0, description="How well the page text matches the query."
+    )
+    score: float = Field(
+        default=0.0, description="Final ranking score: relevance and fusion, weighted by trust."
+    )
+
+
+class SearchResponse(_Model):
+    query: str
+    results: list[SearchResult] = Field(default_factory=list)
+    backends: list[str] = Field(default_factory=list, description="Backends that answered.")
+    warnings: list[str] = Field(default_factory=list)
+    searched_at: datetime = Field(default_factory=_now)

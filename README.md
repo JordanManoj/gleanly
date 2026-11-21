@@ -50,9 +50,30 @@ What gleanly adds on top of plain PDF text extraction and Tesseract:
   16.1% for plain Tesseract, mostly by fixing shadows, faint print and phone photos
   ([bench/README.md](bench/README.md)).
 
+## Search
+
+```python
+from gleanly import search
+
+resp = search("tide pool animals")  # Wikipedia by default; Brave/SearXNG when configured
+for r in resp.results:
+    print(r.score, r.hit.url, r.hit.engines)  # which engines found it, and at what rank
+    print(r.document.quality.score, r.document.compliance.ai_use)  # every result is a full Document
+```
+
+```bash
+gleanly search "tide pool animals" -n 5 --exclude-disallowed
+```
+
+Backends use official APIs only: Wikipedia (no key), Brave Search (`BRAVE_API_KEY`) and
+your own SearXNG instance (`SEARXNG_URL`). Results from several engines are merged with
+reciprocal rank fusion, then every page is fetched through `load()` (robots.txt, rate
+limits, trust score, AI-use verdict, provenance). Ranking v0 combines query relevance,
+the fused rank and the page's trust score; it will be tuned on a search benchmark.
+
 ## Status
 
-Phase 1 (web pages) is done; Phase 2 (PDFs and OCR) is nearly done. See
+Phases 1 (web pages) and 2 (PDFs and OCR) are done; Phase 3 (search) is in progress. See
 [docs/status.md](docs/status.md).
 
 | Capability | Status |
