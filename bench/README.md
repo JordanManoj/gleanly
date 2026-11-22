@@ -375,3 +375,44 @@ remaining weakness. Before this week's fixes gleanly's hard-suite CER was 16.5% 
 97.7%, white-on-dark 17.2%). Caveat: these are generated pages; real scans (review item
 Q2) and Docling/Marker/paid OCR (Q3) are not compared yet.
 
+
+## Shop pages (`bench/shop.py`, 2026-11-22)
+
+A real user's first test was a Nike product page: gleanly returned the story text and the
+delivery terms of ten countries (35% repeated paragraphs) but no price, sizes or product
+code; the score (0.67) contradicted its own low-confidence warning (0.18).
+
+`bench/shop.py --fetch` saves product pages to `bench/data/shop/` (git-ignored, robots.txt
+respected); `bench/shop.py` checks four facts per page, written down by hand from the page:
+product name, price and a description sentence in the Markdown, and name + price +
+currency in `metadata.product`.
+
+| | facts found | Nike repeated paragraphs |
+| --- | --- | --- |
+| before (0.1.0a2) | 2/8 | 35% |
+| after (schema.org facts, repeats once, visible-only framework text) | **8/8** | **0%** |
+
+Only two shops so far: of eight tried, Bose, Decathlon and LEGO refuse an honest client
+(403), Thomann's robots.txt disallows it, and three URLs no longer pointed at a product
+page (a collection, a list of links, a maintenance page). The maintenance page scoring 0.69
+became review item Q10; IKEA's text being mostly customer reviews became Q11.
+
+### OCR without Tesseract: first measurement (2026-11-22)
+
+Goal (maintainer decision): OCR that needs no separately installed program, at least as
+accurate as today. First step: RapidOCR (PP-OCRv6 small, ONNX) with and without gleanly's
+Tesseract-tuned clean-up. Standard suite, dev split, 240 images:
+
+| | RapidOCR as is | + background flattening | + flattening + rescale (26 px) | (36 px) |
+| --- | --- | --- | --- | --- |
+| mean CER | **4.3%** | 6.7% | 6.6% | 6.6% |
+| blur | **4.4%** | 16.5% | 15.1% | 16.4% |
+| clean 300 dpi | 6.1% | 6.1% | 5.6% | 6.5% |
+| Courier | **11.6%** | 16.6% | 16.6% | 16.6% |
+
+The clean-up that cut Tesseract's errors by 25x makes this engine worse (it was tuned for
+Tesseract's binarisation), and the engine as packaged stays far behind gleanly's current
+pipeline (0.61% held-out). Its errors sit in long lines and wide fonts, where its text
+detector drops words, not in character recognition. So Tesseract stays the default; the
+no-Tesseract engine (its own project, `letterly`) must first fix detection and then match
+the current pipeline on held-out before it replaces anything.

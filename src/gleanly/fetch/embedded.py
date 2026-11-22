@@ -3,6 +3,11 @@
 Many sites embed the full article in JSON-LD (``articleBody``) or in framework
 state such as Next.js ``__NEXT_DATA__``. Reading it is cheaper and more faithful
 than running a browser.
+
+Framework state also holds text the page never shows (other countries' delivery terms,
+other languages, A/B variants). So when the page itself shows real text, a state string
+is kept only if it is visible on the page; on a page that is rendered by JavaScript (little
+visible text) everything that reads as prose is kept. Repeated strings are kept once.
 """
 
 from __future__ import annotations
@@ -14,13 +19,16 @@ from typing import Any
 
 from lxml.html import HtmlElement
 
-from gleanly.clean.html import Extraction, RawBlock, extract_fragment
+from gleanly.clean.html import Extraction, RawBlock, extract_fragment, markdown_to_plain
 from gleanly.clean.metadata import iter_json_ld, json_ld_objects
 from gleanly.models import BlockType
 
 _HTMLISH = re.compile(r"<(p|div|h[1-6]|ul|ol|br|span|a|strong|em)[\s>/]", re.I)
 _STATE_SCRIPT_IDS = ("__NEXT_DATA__", "__NUXT_DATA__", "__APOLLO_STATE__")
 MIN_WORDS = 40
+# A page showing at least this many words is not JavaScript-only: state strings must be
+# visible on it to count.
+VISIBLE_MIN_WORDS = 150
 
 
 def _text_blocks(text: str, path: str) -> list[RawBlock]:
@@ -78,10 +86,27 @@ def _from_json_ld(root: HtmlElement, base_url: str | None) -> list[RawBlock]:
     return blocks
 
 
+def _norm(text: str) -> str:
+    return " ".join(text.split()).casefold()  # split() also breaks on no-break spaces
+
+
+_VISIBLE_XPATH = (
+    "//text()[not(ancestor::script or ancestor::style or ancestor::noscript or ancestor::template)]"
+)
+
+
+def visible_text(root: HtmlElement) -> str:
+    """The page's own text (not scripts or styles), normalised for substring checks."""
+    return _norm(" ".join(root.xpath(_VISIBLE_XPATH)))
+
+
 def _from_state_scripts(root: HtmlElement, base_url: str | None) -> list[RawBlock]:
     tree = root.getroottree()
     blocks: list[RawBlock] = []
     seen: set[str] = set()
+    visible = visible_text(root)
+    check_visible = len(visible.split()) >= VISIBLE_MIN_WORDS
+    kept_text: set[str] = set()
     for script in root.iter("script"):
         sid = script.get("id") or ""
         stype = (script.get("type") or "").lower()
@@ -96,13 +121,24 @@ def _from_state_scripts(root: HtmlElement, base_url: str | None) -> list[RawBloc
             if value in seen or not _looks_like_prose(value):
                 continue
             seen.add(value)
-            blocks += _body_blocks(value, f"{script_path} {json_path}", base_url)
+            for block in _body_blocks(value, f"{script_path} {json_path}", base_url):
+                plain = _norm(markdown_to_plain(block.text))
+                if not plain or plain in kept_text:
+                    continue  # the same text stored again (e.g. once per country)
+                if check_visible and plain not in visible:
+                    continue  # in the data but not shown on this page
+                kept_text.add(plain)
+                blocks.append(block)
     return blocks
 
 
 def extract_embedded(root: HtmlElement, base_url: str | None) -> Extraction | None:
     """Return an extraction built from embedded data, or None if there is none."""
-    blocks = _from_json_ld(root, base_url) or _from_state_scripts(root, base_url)
+    blocks = _from_json_ld(root, base_url)
+    if blocks:
+        return Extraction(blocks, "embedded")
+    blocks = _from_state_scripts(root, base_url)
     if not blocks:
         return None
-    return Extraction(blocks, "embedded")
+    # "state": framework data, a fallback that the visible page can outvote (see client).
+    return Extraction(blocks, "embedded", extractor="state")

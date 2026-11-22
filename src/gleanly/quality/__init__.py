@@ -19,6 +19,12 @@ W_STRUCTURE = 0.20
 W_CONFIDENCE = 0.35
 # Below this mean Tesseract word confidence, OCR text gets a warning (set from bench.ocr).
 LOW_OCR_CONFIDENCE = 0.8
+# Below LOW_CONFIDENCE the score is at most extraction_confidence + this margin, so a page
+# whose text an independent check could not confirm never looks trustworthy.
+CONFIDENCE_CAP_MARGIN = 0.3
+# Warned-about extractions keep this share of their score (hand-set until T1 calibration).
+UNSURE_EXTRACTOR_FACTOR = 0.85  # block classifier used: unusual layout
+SMALL_SHARE_FACTOR = 0.9  # main content is a small part of the page
 
 
 def _clip(x: float) -> float:
@@ -98,6 +104,14 @@ def compute_quality(
             "the layout is unusual, so check the result."
         )
     warnings += extra_warnings or []
+    # The score must not contradict the warnings: text an independent check could not
+    # confirm cannot score high, and "check the result" warnings cost a share of it.
+    if extraction_confidence is not None and extraction_confidence < LOW_CONFIDENCE and words:
+        score = min(score, extraction_confidence + CONFIDENCE_CAP_MARGIN)
+    if extraction.extractor == "blocks":
+        score *= UNSURE_EXTRACTOR_FACTOR
+    if boilerplate > 0.85 and words >= 50:
+        score *= SMALL_SHARE_FACTOR
     score *= _clip(score_factor)
     if truncated:
         warnings.append("The response exceeded max_bytes and was truncated.")

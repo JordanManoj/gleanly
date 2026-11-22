@@ -65,6 +65,26 @@ class Block(_Model):
     provenance: Provenance
 
 
+class ProductInfo(_Model):
+    """A product described on the page (from schema.org JSON-LD), for shop pages."""
+
+    name: str | None = None
+    brand: str | None = None
+    price: float | None = Field(default=None, description="Lowest offer price found.")
+    price_max: float | None = Field(default=None, description="Highest price, when offers differ.")
+    currency: str | None = None
+    availability: str | None = Field(default=None, description='schema.org value, e.g. "InStock".')
+    color: str | None = None
+    sizes: list[str] = Field(default_factory=list)
+    available_sizes: list[str] = Field(default_factory=list)
+    sku: str | None = None
+    mpn: str | None = None
+    gtin: str | None = None
+    rating: float | None = None
+    review_count: int | None = None
+    description: str | None = None
+
+
 class Metadata(_Model):
     title: str | None = None
     description: str | None = None
@@ -79,6 +99,9 @@ class Metadata(_Model):
     status_code: int | None = None
     structured_data: list[Any] = Field(
         default_factory=list, description="Parsed JSON-LD objects found on the page."
+    )
+    product: ProductInfo | None = Field(
+        default=None, description="The main product, when the page describes one (shop pages)."
     )
 
 

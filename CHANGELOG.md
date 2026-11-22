@@ -10,6 +10,22 @@ All notable changes to gleanly are listed here. The format follows
 
 - `python -m gleanly`: runs the CLI even when pip's Scripts folder is not on PATH
   (common on Windows, where `gleanly` is then "not recognized").
+- Shop pages: product facts from schema.org JSON-LD (`Product`, `ProductGroup` with
+  variants, `Offer`, `AggregateOffer`) as a table under the title (name, brand, price,
+  availability, colour, sizes, SKU/MPN/GTIN, rating) and as `Document.metadata.product`.
+  The shop's own description is added when the chosen text lacks it.
+- `bench/shop.py`: checks that product facts are found on real shop pages (saved locally,
+  never committed).
+
+### Changed
+
+- Repeated paragraphs and lists (same text, case and spacing ignored) are kept once.
+- Text from framework data (`__NEXT_DATA__` and similar) is kept only if the page also
+  shows it, unless the page is rendered by JavaScript; when the visible page gives at
+  least as much text, it is preferred over framework data. Text declared as the article
+  (JSON-LD `articleBody`) is still trusted.
+- The trust score can no longer contradict its warnings: with extraction confidence
+  below 0.7 it is at most confidence + 0.3, and "check the result" warnings lower it.
 
 ## [0.1.0a2] - 2026-11-22
 

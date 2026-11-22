@@ -49,6 +49,10 @@ Status: `todo` / `doing` / `done`. Each item says how we will know it is fixed.
 | Q5 | Hard OCR suite not yet measured held-out after fixes | Final held-out run (needs free memory) | Numbers in bench/README.md | done (2026-11-22: held-out CER standard 0.61%, hard 0.01%; best of plain Tesseract / RapidOCR / gleanly on both) |
 | Q6 | Search ranking v0 is hand-set | Search benchmark (license-clean, offline-reproducible), tuned ranking, cross-encoder rerank option | Ranking beats fusion-only on the benchmark | todo |
 | Q7 | Search agreement (the headline feature) not built | Claim-level agreement between sources, with provenance | Contradictions flagged in SearchResponse | done v0, experimental (2026-11-22: numbers/dates, precision-first; non-numeric claims still to do) |
+| Q8 | OCR needs Tesseract installed separately | Own OCR pipeline on ONNX Runtime (pip only, no system program), then gleanly's own trained recognition model; Tesseract optional | `pip install gleanly[ocr]` reads scans with no other install, at least as accurate as today on held-out | in progress (stage 1) |
+| Q9 | Shop pages: facts missing, text repeated (Nike: no price, 35% repeated paragraphs) | schema.org product facts table + `metadata.product`; repeated paragraphs kept once; hidden framework text only when visible; `bench/shop.py` | All facts found on the shop set | done v0 (2026-11-22: 2/8 -> 8/8 facts on 2 shops; more shops needed: 4 of 8 tried refused an honest client) |
+| Q10 | Error and maintenance pages served as "200 OK" look like content (Patagonia: "We're working on it", score 0.69) | Detect soft errors and bot walls; report them in FetchTrace and zero the score | Soft-error pages flagged on a test set | todo |
+| Q11 | Customer reviews taken as the main text (IKEA); reviewer names glued to text | Reviews as their own role (like comments), spacing between inline blocks | Reviews separated on the shop set | todo |
 
 ### Trust, compliance and evidence
 
@@ -69,4 +73,9 @@ Status: `todo` / `doing` / `done`. Each item says how we will know it is fixed.
   (OCR leads both rivals on held-out standard and hard suites; search agreement exists;
   adopter docs). User score unchanged: still not installable (A1). CEO score up a little
   (security policy, versioning, contributor docs). Next priority: A1 release, then Q6.
-
+- **2026-11-22 (night):** A1 done: 0.1.0a1 and 0.1.0a2 on PyPI (a2 fixes `--pre` installs
+  pulling unfinished dependency releases; CI now installs the built wheel and converts a
+  page before publishing). CodeQL found a license-URL check that matched anywhere in a link;
+  fixed. First real-user test (a Nike product page) showed shop pages are weak: added Q8
+  (no-Tesseract OCR, user decision), Q9 (done v0), Q10, Q11. The trust score now cannot
+  contradict its own warnings. User score up (installable), still limited by docs (S5).

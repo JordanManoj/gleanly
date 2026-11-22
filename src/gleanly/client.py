@@ -15,6 +15,7 @@ from lxml.html import HtmlElement
 
 from gleanly.clean.blocks import rescue
 from gleanly.clean.comments import with_comments
+from gleanly.clean.finish import finish_html
 from gleanly.clean.html import Extraction, RawBlock, extract_html, markdown_to_plain, parse_html
 from gleanly.clean.metadata import extract_metadata, iter_json_ld
 from gleanly.compliance import aitxt, tdmrep
@@ -211,16 +212,11 @@ class Client:
             from gleanly.fetch.http import decode_bytes
 
             root = parse_html(decode_bytes(data))
-            extraction = extract_html(
-                root, None, method="file", include_comments=self.options.include_comments
-            )
-            js_suspect = router.looks_js_rendered(root, extraction)
-            extraction = self._try_embedded(root, uri, extraction, trace, js_suspect)
-            extraction = rescue(extraction, root) or extraction
-            if self.options.include_comments and extraction.method == "embedded":
-                extraction = with_comments(extraction, root)
+            extraction, _ = self._html_extraction(root, uri, None, "file", trace)
+            extraction, product = finish_html(extraction, root)
             json_ld = iter_json_ld(root)
             metadata = extract_metadata(root, url=None, content_type="text/html", json_ld=json_ld)
+            metadata.product = product
             license_info = detect_license(root, json_ld, None)
             noai = detect_noai({}, root)
             tdm_signals = [s for s in (tdmrep.from_html(root),) if s]
@@ -401,16 +397,8 @@ class Client:
             raise UnsupportedSourceError(f"Unsupported content type {ctype!r} at {resp.url}.")
 
         root = parse_html(text)
-        extraction = extract_html(
-            root, resp.url, method="http", include_comments=o.include_comments
-        )
-        js_suspect = router.looks_js_rendered(root, extraction)
-
-        # Rung 2: embedded data
-        extraction = self._try_embedded(root, resp.url, extraction, trace, js_suspect)
-        extraction = rescue(extraction, root) or extraction
-        if o.include_comments and extraction.method == "embedded":
-            extraction = with_comments(extraction, root)
+        # Rung 1 (visible HTML) and rung 2 (embedded data)
+        extraction, js_suspect = self._html_extraction(root, resp.url, resp.url, "http", trace)
 
         # Rung 3: browser
         final_root = root
@@ -454,6 +442,7 @@ class Client:
                     js_suspect = False
 
         trace.final_url, trace.final_rung = resp.url, extraction.method
+        extraction, product = finish_html(extraction, final_root)
         json_ld = iter_json_ld(final_root)
         metadata = extract_metadata(
             final_root,
@@ -462,6 +451,7 @@ class Client:
             content_type=ctype or None,
             json_ld=json_ld,
         )
+        metadata.product = product
         html_tdm = tdmrep.from_html(final_root)
         if html_tdm:
             tdm_signals.append(html_tdm)
@@ -687,6 +677,42 @@ class Client:
             local=local,
             ocr_confidence=OcrConfidence.of(words),
         )
+
+    def _html_extraction(
+        self, root: HtmlElement, url: str, base: str | None, method: str, trace: FetchTrace
+    ) -> tuple[Extraction, bool]:
+        """Visible HTML, then embedded data; returns (extraction, looks JS-rendered).
+
+        Text the publisher declares as the article (JSON-LD ``articleBody``) is trusted.
+        Strings found in framework state are a fallback: when the visible page, read by
+        the block classifier, gives at least as much text, the visible page wins.
+        """
+        o = self.options
+        first = extract_html(root, base, method=method, include_comments=o.include_comments)
+        js_suspect = router.looks_js_rendered(root, first)
+        extraction = self._try_embedded(root, url, first, trace, js_suspect)
+        rescued = rescue(first, root)
+        if rescued is not None and (
+            extraction is first
+            or (extraction.extractor == "state" and rescued.word_count >= extraction.word_count)
+        ):
+            if extraction is not first:
+                trace.steps.append(
+                    FetchStep(
+                        rung="embedded",
+                        url=url,
+                        ok=False,
+                        detail=(
+                            f"visible page preferred ({rescued.word_count} words) over "
+                            f"framework data ({extraction.word_count} words)"
+                        ),
+                    )
+                )
+                trace.final_rung = method
+            extraction = rescued
+        if o.include_comments and extraction.method == "embedded":
+            extraction = with_comments(extraction, root)
+        return extraction, js_suspect
 
     @staticmethod
     def _try_embedded(

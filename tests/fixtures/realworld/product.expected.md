@@ -1,5 +1,11 @@
 # Field Thermos 750 ml
 
+| Product | Field Thermos 750 ml |
+| --- | --- |
+| Brand | Northpine |
+| Price | 34 EUR |
+| Availability | InStock |
+
 €34,00
 
 A double-walled steel bottle built for cold mornings. Coffee poured at dawn is still hot at the end of an eighteen-hour day, and water stays cold for a full day in summer.

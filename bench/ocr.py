@@ -260,7 +260,34 @@ def variants() -> dict[str, OcrFn]:
     rapid = _rapidocr()
     if rapid is not None:
         out["rapidocr"] = rapid
+        out.update(_rapid_cleaned(rapid))
     return out
+
+
+def _rapid_cleaned(rapid: OcrFn) -> dict[str, OcrFn]:
+    """RapidOCR behind gleanly's clean-up: candidates for a Tesseract-free engine."""
+    from gleanly.ocr import preprocess as pp
+
+    def clean(img: Image.Image) -> Image.Image:
+        return pp.flatten_background(pp.to_gray(img))
+
+    def scaled(target: int) -> Callable[[Image.Image], Image.Image]:
+        def fn(img: Image.Image) -> Image.Image:
+            old = pp.TARGET_LINE_PX
+            pp.TARGET_LINE_PX = target
+            try:
+                return pp.normalise_scale(clean(img))[0]
+            finally:
+                pp.TARGET_LINE_PX = old
+
+        return fn
+
+    prep: dict[str, Callable[[Image.Image], Image.Image]] = {
+        "r-clean": clean,
+        "r-s26": scaled(26),
+        "r-s36": scaled(36),
+    }
+    return {name: (lambda img, f=f: rapid(f(img))) for name, f in prep.items()}
 
 
 def _rapidocr() -> OcrFn | None:
