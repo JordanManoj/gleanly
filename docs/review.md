@@ -45,9 +45,9 @@ Status: `todo` / `doing` / `done`. Each item says how we will know it is fixed.
 | Q2 | OCR wins measured on synthetic pages only | Add real scans (license-clean or self-made photos/scans) to the OCR benchmark | Real-scan suite in bench/ | todo |
 | Q3 | Never compared with Docling, Marker or paid OCR | Benchmark Docling (MIT) and Marker (bench only) and one paid OCR on a shared sample | Comparison table in bench/README.md | todo |
 | Q4 | OCR: blur is the largest error; engines differ by case | Tesseract + RapidOCR cross-check / ensemble as an optional extra | Beats both single engines on held-out | todo |
-| Q5 | Hard OCR suite not yet measured held-out after fixes | Final held-out run (needs free memory) | Numbers in bench/README.md | doing |
+| Q5 | Hard OCR suite not yet measured held-out after fixes | Final held-out run (needs free memory) | Numbers in bench/README.md | done (2026-11-22: held-out CER standard 0.61%, hard 0.01%; best of plain Tesseract / RapidOCR / gleanly on both) |
 | Q6 | Search ranking v0 is hand-set | Search benchmark (license-clean, offline-reproducible), tuned ranking, cross-encoder rerank option | Ranking beats fusion-only on the benchmark | todo |
-| Q7 | Search agreement (the headline feature) not built | Claim-level agreement between sources, with provenance | Contradictions flagged in SearchResponse | todo |
+| Q7 | Search agreement (the headline feature) not built | Claim-level agreement between sources, with provenance | Contradictions flagged in SearchResponse | done v0, experimental (2026-11-22: numbers/dates, precision-first; non-numeric claims still to do) |
 
 ### Trust, compliance and evidence
 

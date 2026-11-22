@@ -52,7 +52,7 @@ broken PDFs exists to benchmark the text-layer check.
 | Reciprocal rank fusion with URL normalisation | done | Pages several engines agree on rank higher |
 | Ranking v0: relevance + fusion, weighted by trust; `exclude_disallowed` | done | Hand-set weights; benchmark next |
 | Search benchmark, tuned ranking | next | |
-| Claim-level agreement between sources | planned | |
+| Cross-source agreement on numbers and dates (`SearchResponse.agreement`) | done (experimental) | Precision-first; live Wikipedia checks: 0 false conflicts on 3 of 4 queries |
 
 ## Later phases
 

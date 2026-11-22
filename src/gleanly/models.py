@@ -255,9 +255,49 @@ class SearchResult(_Model):
     )
 
 
+class ClaimSource(_Model):
+    """Where a fact was found: the page, the block and the exact span in its Markdown."""
+
+    url: str
+    block_index: int
+    char_start: int
+    char_end: int
+    quote: str = Field(description="The sentence containing the fact.")
+
+
+class FactValue(_Model):
+    value: str = Field(description="The value as written, e.g. '1997' or '8,849 m'.")
+    sources: list[ClaimSource] = Field(default_factory=list)
+
+
+class FactGroup(_Model):
+    """Facts from different sources about the same thing (matched by their context)."""
+
+    topic: str = Field(description="Context words the sources share.")
+    kind: str = Field(description="year, percent, number, currency:$, unit:km, ...")
+    values: list[FactValue] = Field(
+        default_factory=list, description="One entry per distinct value, most-cited first."
+    )
+
+
+class AgreementReport(_Model):
+    """Cross-source agreement on numeric and date facts (v0 heuristic; see search/agreement.py)."""
+
+    conflicts: list[FactGroup] = Field(
+        default_factory=list, description="Sources give different values for the same thing."
+    )
+    corroborated: list[FactGroup] = Field(
+        default_factory=list, description="Two or more sources give the same value."
+    )
+
+
 class SearchResponse(_Model):
     query: str
     results: list[SearchResult] = Field(default_factory=list)
     backends: list[str] = Field(default_factory=list, description="Backends that answered.")
+    agreement: AgreementReport | None = Field(
+        default=None,
+        description="Where the fetched sources agree or contradict each other (numbers, dates).",
+    )
     warnings: list[str] = Field(default_factory=list)
     searched_at: datetime = Field(default_factory=_now)

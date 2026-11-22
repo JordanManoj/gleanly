@@ -360,3 +360,18 @@ Dev, both suites, 15 types x 30 images:
 | phone photo | 0.34% | 0.35% |
 | **mean (15 types)** | 1.27% | **0.84%** |
 
+### Final held-out OCR results (2026-11-22)
+
+Test split only (texts 2, 5 and 8; 5 fonts; 15 images per page type), final settings,
+measured once. Plain Tesseract and RapidOCR figures are from the same test split.
+
+| | plain Tesseract | RapidOCR | **gleanly** |
+| --- | --- | --- | --- |
+| standard suite (8 conditions), mean CER | 16.1% | 5.1% | **0.61%** |
+| hard suite (7 cases), mean CER | 0.5% | 15.1% | **0.01%** |
+
+Per page type (gleanly): every type below 0.3% CER except **blur (4.2%)**, the main
+remaining weakness. Before this week's fixes gleanly's hard-suite CER was 16.5% (tables
+97.7%, white-on-dark 17.2%). Caveat: these are generated pages; real scans (review item
+Q2) and Docling/Marker/paid OCR (Q3) are not compared yet.
+

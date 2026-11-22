@@ -25,6 +25,7 @@ from gleanly.client import Client
 from gleanly.config import LoadOptions
 from gleanly.errors import AcquisitionError
 from gleanly.models import SearchHit, SearchResponse, SearchResult
+from gleanly.search.agreement import check_agreement
 from gleanly.search.backends import (
     BACKENDS,
     Backend,
@@ -156,8 +157,15 @@ async def search_with(
             warnings.append(f"{len(dropped)} result(s) dropped: AI use disallowed by the site.")
         results = [r for r in results if r not in dropped]
     _rank(query, results)
+    kept = results[:max_results]
+    docs = [(r.hit.url, r.document) for r in kept if r.document is not None]
+    agreement = check_agreement(query, docs) if len(docs) >= 2 else None
     return SearchResponse(
-        query=query, results=results[:max_results], backends=sorted(lists), warnings=warnings
+        query=query,
+        results=kept,
+        backends=sorted(lists),
+        agreement=agreement,
+        warnings=warnings,
     )
 
 

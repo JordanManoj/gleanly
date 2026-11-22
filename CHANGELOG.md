@@ -27,6 +27,8 @@ First public alpha in preparation (`0.1.0a1`).
   flattening and text-size normalisation; `ocr_confidence` in the trust score.
 - `search()` / `asearch()`: Wikipedia, Brave and SearXNG backends (official APIs only),
   reciprocal rank fusion, every result fetched and scored.
+- Search agreement (experimental): `SearchResponse.agreement` with corroborated and
+  conflicting numeric/date facts, each source quoted with its location.
 - CLI: `gleanly load` and `gleanly search`.
 - Benchmarks (`bench/`): web extraction on 8 datasets, OCR standard and hard suites,
   confidence calibration.

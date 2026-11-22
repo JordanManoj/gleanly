@@ -71,6 +71,11 @@ reciprocal rank fusion, then every page is fetched through `load()` (robots.txt,
 limits, trust score, AI-use verdict, provenance). Ranking v0 combines query relevance,
 the fused rank and the page's trust score; it will be tuned on a search benchmark.
 
+**Source agreement (experimental):** `resp.agreement` lists numeric and date facts that
+two or more results agree on (`corroborated`) or contradict (`conflicts`), each quoting
+every source with its exact location. It is strict on purpose (a conflict needs nearly
+the same sentence with a different number) and reports candidates to check, not verdicts.
+
 ## Status
 
 Phases 1 (web pages) and 2 (PDFs and OCR) are done; Phase 3 (search) is in progress. See
