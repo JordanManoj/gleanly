@@ -136,6 +136,11 @@ class QualityReport(_Model):
 
 
 AIUse = Literal["allowed", "disallowed", "unclear"]
+COMPLIANCE_DISCLAIMER = (
+    "Evidence gathered automatically from the source's signals (robots.txt, TDMRep, "
+    "ai.txt, noai, license). It is not legal advice: check the source's terms and the law "
+    "that applies to you before using the content, especially for AI training."
+)
 
 
 class ComplianceInfo(_Model):
@@ -166,8 +171,21 @@ class ComplianceInfo(_Model):
     license_url: str | None = None
     pii_detected: bool | None = None
     pii_types: list[str] = Field(default_factory=list)
-    ai_use: AIUse = "unclear"
+    ai_use: AIUse = Field(
+        default="unclear",
+        description="allowed / disallowed / unclear, from the signals above. 'allowed' can "
+        "still come with conditions (see `conditions`).",
+    )
+    conditions: list[str] = Field(
+        default_factory=list,
+        description="Obligations implied by the evidence, e.g. attribution required "
+        "(CC-BY) or data-protection law applies (personal data found).",
+    )
     evidence: list[str] = Field(default_factory=list)
+    disclaimer: str = Field(
+        default=COMPLIANCE_DISCLAIMER,
+        description="This report is evidence gathered automatically, not legal advice.",
+    )
 
 
 class FetchStep(_Model):

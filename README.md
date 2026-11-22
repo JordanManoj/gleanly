@@ -10,7 +10,7 @@ from gleanly import load
 doc = load("https://example.com/article")
 print(doc.markdown)  # clean Markdown (tables and code preserved)
 print(doc.quality.score)  # 0..1, comparable across web, PDF and OCR sources
-print(doc.compliance.ai_use)  # "allowed" | "disallowed" | "unclear", with evidence
+print(doc.compliance.ai_use)  # "allowed" | "disallowed" | "unclear" + conditions and evidence
 print(doc.blocks[0].provenance)  # URL + XPath + character span in the Markdown
 print(doc.fetch_trace.steps)  # every fetch-ladder step that was tried, and why
 ```

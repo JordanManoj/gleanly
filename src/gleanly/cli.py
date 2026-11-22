@@ -162,6 +162,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         f"ai_use={c.ai_use}" + (f" -> {args.output}" if args.output else ""),
         file=sys.stderr,
     )
+    for condition in c.conditions:
+        print(f"condition: {condition}", file=sys.stderr)
+    print("note: the ai_use verdict is evidence, not legal advice.", file=sys.stderr)
     for warning in q.warnings:
         print(f"warning: {warning}", file=sys.stderr)
     return 0

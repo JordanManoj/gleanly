@@ -85,8 +85,12 @@ def assess(
                 f"License {license_info.license} restricts reuse (e.g. NC/ND); check its terms."
             )
 
+    conditions = license_conditions(license_info.license) if license_info else []
     if pii_types:
         evidence.append(f"Possible personal data in text: {', '.join(pii_types)}")
+        conditions.append(
+            "Possible personal data found: data-protection law (e.g. GDPR) may apply."
+        )
 
     if negative:
         ai_use = "disallowed"
@@ -110,5 +114,23 @@ def assess(
         pii_detected=bool(pii_types) if pii_types is not None else None,
         pii_types=pii_types or [],
         ai_use=ai_use,
+        conditions=conditions,
         evidence=evidence,
     )
+
+
+def license_conditions(license_id: str) -> list[str]:
+    """Obligations that come with a detected license (a summary, not the license text)."""
+    lic = license_id.upper()
+    out: list[str] = []
+    if lic.startswith("CC-BY") or lic.startswith("ODC-BY"):
+        out.append(f"Attribution required ({license_id}): credit the source and link the license.")
+    if "-SA" in lic:
+        out.append(f"Share-alike ({license_id}): adaptations must use the same license.")
+    if "-NC" in lic:
+        out.append(f"Non-commercial only ({license_id}).")
+    if "-ND" in lic:
+        out.append(f"No derivatives ({license_id}): adapted versions may not be shared.")
+    if lic in ("MIT", "APACHE-2.0"):
+        out.append(f"Keep the copyright and license notice ({license_id}).")
+    return out

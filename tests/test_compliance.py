@@ -230,3 +230,37 @@ def test_ai_txt_in_verdict() -> None:
     assert blocked.ai_txt_allowed is False
     allowed = assess(robots=None, ai_txt=aitxt.AiTxtVerdict(True, "Allow: *.html", "*"))
     assert allowed.ai_use == "allowed"
+
+
+@pytest.mark.parametrize(
+    ("lic", "expected"),
+    [
+        ("CC-BY-4.0", ["Attribution required"]),
+        ("CC-BY-SA-4.0", ["Attribution required", "Share-alike"]),
+        ("CC-BY-NC-ND-4.0", ["Attribution required", "Non-commercial", "No derivatives"]),
+        ("MIT", ["Keep the copyright"]),
+        ("CC0-1.0", []),
+    ],
+)
+def test_license_conditions(lic: str, expected: list[str]) -> None:
+    from gleanly.compliance import license_conditions
+
+    got = license_conditions(lic)
+    assert len(got) == len(expected)
+    for g, e in zip(got, expected, strict=True):
+        assert g.startswith(e)
+
+
+def test_allowed_verdict_carries_conditions_and_disclaimer() -> None:
+    info = assess(
+        robots=None,
+        license_info=LicenseInfo(
+            "CC-BY-SA-4.0", "https://creativecommons.org/licenses/by-sa/4.0/", "x"
+        ),
+        pii_types=["email"],
+    )
+    assert info.ai_use == "allowed"
+    assert any(c.startswith("Attribution required") for c in info.conditions)
+    assert any(c.startswith("Share-alike") for c in info.conditions)
+    assert any("GDPR" in c for c in info.conditions)
+    assert "not legal advice" in info.disclaimer

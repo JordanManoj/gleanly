@@ -54,7 +54,7 @@ Status: `todo` / `doing` / `done`. Each item says how we will know it is fixed.
 | # | Weakness | Work | Done when | Status |
 | --- | --- | --- | --- | --- |
 | T1 | Trust score is hand-tuned, not proven | Calibrate against downstream RAG accuracy (does a higher score mean better answers?) | Calibration study and curve in bench/ | todo |
-| T2 | Compliance verdict carries legal weight | Clear "evidence, not legal advice" wording everywhere it shows; conservative verdicts; tests of edge cases | Wording in models, README, CLI output | todo |
+| T2 | Compliance verdict carries legal weight | Clear "evidence, not legal advice" wording everywhere it shows; conservative verdicts; tests of edge cases | Wording in models, README, CLI output | done (2026-11-22: `conditions` + `disclaimer` on ComplianceInfo, CLI note) |
 | T3 | Provenance stops at blocks | Sentence-level provenance | Each sentence maps to its source span | todo |
 
 ## Review log
