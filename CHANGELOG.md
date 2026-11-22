@@ -6,7 +6,9 @@ All notable changes to gleanly are listed here. The format follows
 
 ## [Unreleased]
 
-First public alpha in preparation (`0.1.0a1`).
+## [0.1.0a1] - 2026-11-22
+
+First public alpha.
 
 ### Added
 
