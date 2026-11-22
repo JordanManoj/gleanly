@@ -22,7 +22,7 @@ Status: `todo` / `doing` / `done`. Each item says how we will know it is fixed.
 
 | # | Weakness | Work | Done when | Status |
 | --- | --- | --- | --- | --- |
-| A1 | Nobody can install it: private repo, not on PyPI, version 0.1.0.dev0 | Public repo + PyPI trusted publishing + `v0.1.0a1` (maintainer does the account steps) | `pip install gleanly` works for a stranger | todo |
+| A1 | Nobody can install it: private repo, not on PyPI, version 0.1.0.dev0 | Public repo + PyPI trusted publishing + `v0.1.0a1` (maintainer does the account steps) | `pip install gleanly` works for a stranger | done (0.1.0a2 on PyPI, 2026-11-22; a clean install converts a page in CI before every release) |
 | A2 | No users, no feedback | Alpha announcement, issue templates, a short "try it" guide; ask 5-10 people to try it | 5+ outside users or issues | todo |
 | A3 | No promise the API stays stable | Versioning policy (SemVer, deprecation warnings), CHANGELOG | CHANGELOG and policy in the repo | done (2026-11-22: CHANGELOG.md, docs/versioning.md) |
 | A4 | One maintainer (bus factor 1) | CONTRIBUTING guide, architecture doc, good-first-issues | A contributor can land a PR from the docs alone | doing (2026-11-22: CONTRIBUTING.md, docs/architecture.md; good-first-issues after release) |

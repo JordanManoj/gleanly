@@ -23,6 +23,12 @@ from .conftest import fixture_text
         ("https://opensource.org/licenses/MIT", "MIT"),
         ("https://www.apache.org/licenses/LICENSE-2.0", "Apache-2.0"),
         ("https://example.com/terms", None),
+        ("//creativecommons.org/licenses/by/4.0/", "CC-BY-4.0"),
+        ("creativecommons.org/licenses/by-sa/4.0", "CC-BY-SA-4.0"),
+        # The license must be the link's real host and path, not text inside another URL.
+        ("https://evil.example/?x=creativecommons.org/licenses/by/4.0/", None),
+        ("https://creativecommons.org.evil.example/licenses/by/4.0/", None),
+        ("https://evil.example/opensource.org/licenses/MIT", None),
     ],
 )
 def test_license_from_url(url: str, expected: str | None) -> None:

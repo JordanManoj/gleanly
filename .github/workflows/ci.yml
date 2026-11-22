@@ -61,4 +61,12 @@ jobs:
         run: |
           uv venv /tmp/smoke
           uv pip install --python /tmp/smoke dist/*.whl
-          /tmp/smoke/bin/python -c "import gleanly; print(gleanly.__version__)"
+          /tmp/smoke/bin/gleanly --version
+          /tmp/smoke/bin/gleanly load tests/fixtures/article.html -o /tmp/smoke.md
+          test -s /tmp/smoke.md
+      - name: Smoke-test with pre-release dependencies allowed (what `pip install --pre` does)
+        run: |
+          uv venv /tmp/smoke-pre
+          uv pip install --python /tmp/smoke-pre --prerelease allow dist/*.whl
+          /tmp/smoke-pre/bin/gleanly load tests/fixtures/article.html -o /tmp/smoke-pre.md
+          test -s /tmp/smoke-pre.md

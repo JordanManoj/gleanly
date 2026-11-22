@@ -13,3 +13,7 @@ htmlcov/
 *.md.out
 bench/data/
 bench/results/
+
+# Local secrets (API keys) never go in git
+.env
+.env.*

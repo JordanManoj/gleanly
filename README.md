@@ -5,8 +5,8 @@ Markdown with a **trust score**, **compliance metadata** ("can I use this for AI
 training?") and **provenance** for every block. One `pip install`, one process, no Docker.
 
 ```bash
-pip install --pre gleanly            # alpha: --pre is needed until 1.0
-pip install --pre "gleanly[pdf,ocr]" # + PDFs and OCR (OCR also needs Tesseract installed)
+pip install gleanly              # core
+pip install "gleanly[pdf,ocr]"   # + PDFs and OCR (OCR also needs Tesseract installed)
 ```
 
 > **Alpha:** the API may still change between 0.x releases (see the

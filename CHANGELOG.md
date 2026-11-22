@@ -6,6 +6,19 @@ All notable changes to gleanly are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0a2] - 2026-11-22
+
+### Fixed
+
+- `pip install --pre gleanly` installed unfinished dependency releases (httpx 1.0.dev,
+  lxml 7 beta) and `load()` failed with `httpx has no attribute AsyncClient`. Dependencies
+  now have upper bounds on their major versions, the README uses a plain
+  `pip install gleanly`, and CI installs the built wheel (also with pre-releases allowed)
+  and converts a page before anything is published.
+- License detection matched a license address anywhere inside a link, so
+  `https://other.example/?x=creativecommons.org/licenses/by/4.0` counted as CC-BY. It
+  now requires the link's real host and path (found by CodeQL).
+
 ## [0.1.0a1] - 2026-11-22
 
 First public alpha.

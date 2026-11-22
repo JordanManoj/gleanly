@@ -22,6 +22,16 @@ jobs:
           version=$(uv run python -c "import gleanly; print(gleanly.__version__)")
           test "v$version" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME} != v$version"; exit 1; }
       - run: uv build
+      - name: Smoke-test the wheel as a new user would install it
+        run: |
+          uv venv /tmp/smoke
+          uv pip install --python /tmp/smoke dist/*.whl
+          /tmp/smoke/bin/gleanly load tests/fixtures/article.html -o /tmp/smoke.md
+          test -s /tmp/smoke.md
+          uv venv /tmp/smoke-pre
+          uv pip install --python /tmp/smoke-pre --prerelease allow dist/*.whl
+          /tmp/smoke-pre/bin/gleanly load tests/fixtures/article.html -o /tmp/smoke-pre.md
+          test -s /tmp/smoke-pre.md
       - uses: actions/upload-artifact@v4
         with:
           name: dist

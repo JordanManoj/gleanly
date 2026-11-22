@@ -5,23 +5,24 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 from lxml.html import HtmlElement
 
 from gleanly.clean.metadata import json_ld_objects
 
-_CC = re.compile(
-    r"creativecommons\.org/(licenses|publicdomain)/([a-z+-]+)(?:/(\d(?:\.\d)?))?", re.I
-)
+# Matched against the link's real host and path, never anywhere in the string: a link such
+# as https://other.example/?x=creativecommons.org/licenses/by/4.0 is not a license.
+_CC_HOST = "creativecommons.org"
+_CC_PATH = re.compile(r"/(licenses|publicdomain)/([a-z+-]+)(?:/(\d(?:\.\d)?))?", re.I)
 _KNOWN = {
-    "opensource.org/licenses/mit": "MIT",
-    "apache.org/licenses/license-2.0": "Apache-2.0",
-    "opendatacommons.org/licenses/odbl": "ODbL-1.0",
-    "opendatacommons.org/licenses/by": "ODC-By-1.0",
-    "opendatacommons.org/licenses/pddl": "PDDL-1.0",
-    "gnu.org/licenses/fdl": "GFDL",
-    "gnu.org/licenses/gpl": "GPL",
+    ("opensource.org", "/licenses/mit"): "MIT",
+    ("apache.org", "/licenses/license-2.0"): "Apache-2.0",
+    ("opendatacommons.org", "/licenses/odbl"): "ODbL-1.0",
+    ("opendatacommons.org", "/licenses/by"): "ODC-By-1.0",
+    ("opendatacommons.org", "/licenses/pddl"): "PDDL-1.0",
+    ("gnu.org", "/licenses/fdl"): "GFDL",
+    ("gnu.org", "/licenses/gpl"): "GPL",
 }
 # Licenses that clearly permit reuse, including for AI training (attribution may apply).
 _PERMISSIVE_EXACT = {"CC0-1.0", "public-domain", "MIT", "Apache-2.0", "ODC-By-1.0", "PDDL-1.0"}
@@ -34,18 +35,41 @@ class LicenseInfo:
     evidence: str
 
 
+def _host_path(url: str) -> tuple[str, str]:
+    url = url.strip()
+    if "//" not in url:
+        url = "//" + url  # scheme-less "creativecommons.org/licenses/..."
+    try:
+        parts = urlsplit(url)
+        host = (parts.hostname or "").lower()
+    except ValueError:
+        return "", ""
+    return host, parts.path
+
+
+def _on_host(host: str, domain: str) -> bool:
+    return host == domain or host.endswith("." + domain)
+
+
 def license_from_url(url: str) -> str | None:
-    if m := _CC.search(url):
+    host, path = _host_path(url)
+    if not host:
+        return None
+    if _on_host(host, _CC_HOST) and (m := _CC_PATH.match(path)):
         kind, code, version = m.group(1).lower(), m.group(2).lower(), m.group(3)
         if kind == "publicdomain":
             return "CC0-1.0" if code == "zero" else "public-domain"
         ident = "CC-" + code.upper()
         return f"{ident}-{version}" if version else ident
-    lowered = url.lower()
-    for needle, spdx in _KNOWN.items():
-        if needle in lowered:
+    lowered = path.lower()
+    for (domain, prefix), spdx in _KNOWN.items():
+        if _on_host(host, domain) and lowered.startswith(prefix):
             return spdx
     return None
+
+
+def _is_cc_link(url: str) -> bool:
+    return _on_host(_host_path(url)[0], _CC_HOST)
 
 
 def is_permissive(license_id: str) -> bool:
@@ -88,6 +112,6 @@ def detect_license(
     # 4. Any link to a Creative Commons license (typical in footers)
     for a in root.iter("a"):
         href = a.get("href") or ""
-        if "creativecommons.org/" in href and (lic := license_from_url(href)):
+        if _is_cc_link(href) and (lic := license_from_url(href)):
             return LicenseInfo(lic, absolute(href), f"link to {href}")
     return None
