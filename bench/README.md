@@ -345,3 +345,18 @@ Next idea: run both engines where it matters and cross-check them word by word (
 method for web pages and PDF text layers); RapidOCR's confidence is much better calibrated
 and it is stronger on blur, Tesseract+clean-up is stronger elsewhere.
 
+Follow-up (2026-11-22): shrink-only fixed tables but left clean 300 dpi Courier pages at
+7.5% CER (split into fake columns). Enlarging up to 1.3x fixes those, but broke tables
+again (3.7%). Final rule: **enlarge at most 1.3x, never on ruled pages** (horizontal rules
+in several strips; detected on all 5 table fonts and none of the other 14 page types).
+Dev, both suites, 15 types x 30 images:
+
+| | shrink only | rule (1.3x, not on ruled pages) |
+| --- | --- | --- |
+| clean 300 dpi | 7.47% | **1.76%** |
+| two columns | 0.33% | **0.14%** |
+| cheap scan | 0.29% | **0.18%** |
+| table | 0.00% | **0.00%** |
+| phone photo | 0.34% | 0.35% |
+| **mean (15 types)** | 1.27% | **0.84%** |
+

@@ -18,10 +18,12 @@ if TYPE_CHECKING:
 
 # Text-line height (pixels, as measured by line_height) that Tesseract reads best.
 TARGET_LINE_PX = 26  # chosen on bench.ocr dev: 18, 22, 32 were worse
-# Only shrink: enlarging broke ruled tables and cost accuracy on fax-quality pages
-# (bench.ocr dev, both suites: mean CER 3.0% -> 1.3%). Open item: clean 300 dpi Courier
-# pages read worse unscaled (1.8% -> 7.5%).
-MIN_SCALE, MAX_SCALE = 0.25, 1.0
+# Enlarge at most 1.3x, and never on ruled pages (tables, forms). On bench.ocr dev (both
+# suites, 15 page types x 30 images): mean CER 1.27% (shrink only) -> 0.84%; tables stay
+# at 0% (unlimited enlarging broke them: 32%). See bench/README.md.
+MIN_SCALE, MAX_SCALE = 0.25, 1.3
+RULED_MAX_SCALE = 1.0
+RULED_MIN_LINES = 3  # solid rows in at least this many places, in 2+ strips = ruled page
 
 
 def to_gray(img: Image.Image) -> Image.Image:
@@ -66,16 +68,21 @@ SOLID_ROW = 0.25  # a row this dark across a whole strip is a ruling line, not t
 MIN_RUN = 4  # shorter runs are noise or thin rules
 
 
-def _runs(column: list[int]) -> list[int]:
-    """Lengths of runs of rows that contain ink in one strip's row profile.
+def _runs(column: list[int]) -> tuple[list[int], int]:
+    """(Lengths of inked row runs, number of solid rules) in one strip's row profile.
 
     Solid rows (table rules, underlines, borders) end a run instead of extending it:
     otherwise a ruled table looks like 3 px "text" and gets blown up far too much.
     """
     paper = statistics.median(column) if column else 255
     solid = paper * SOLID_ROW
-    runs, n = [], 0
+    runs, n, rules, in_rule = [], 0, 0, False
     for v in column:
+        if v <= solid:
+            rules += not in_rule
+            in_rule = True
+        else:
+            in_rule = False
         if solid < v < paper - 4:
             n += 1
         elif n:
@@ -83,7 +90,27 @@ def _runs(column: list[int]) -> list[int]:
             n = 0
     if n:
         runs.append(n)
-    return [r for r in runs if r >= MIN_RUN]
+    return [r for r in runs if r >= MIN_RUN], rules
+
+
+def _profile(gray: Image.Image) -> tuple[list[int], list[int]]:
+    """Inked row runs over all strips, and the number of solid rules in each strip."""
+    strip_w = max(8, min(gray.width // (2 * STRIPS), 160))
+    runs: list[int] = []
+    rules: list[int] = []
+    for i in range(STRIPS):
+        x0 = round((i + 0.5) * gray.width / STRIPS - strip_w / 2)
+        strip = gray.crop((x0, 0, x0 + strip_w, gray.height))
+        r, n = _runs(list(strip.resize((1, gray.height)).tobytes()))  # mean per row
+        runs += r
+        rules.append(n)
+    return runs, rules
+
+
+def is_ruled(gray: Image.Image) -> bool:
+    """True for pages with horizontal rules across several strips (tables, forms)."""
+    _, rules = _profile(gray)
+    return sum(n >= RULED_MIN_LINES for n in rules) >= 2
 
 
 def line_height(gray: Image.Image) -> float | None:
@@ -93,12 +120,7 @@ def line_height(gray: Image.Image) -> float | None:
     tilted page, a line spans many rows over the full width and neighbouring lines merge,
     but over a narrow strip a few degrees of skew barely move it.
     """
-    strip_w = max(8, min(gray.width // (2 * STRIPS), 160))
-    runs: list[int] = []
-    for i in range(STRIPS):
-        x0 = round((i + 0.5) * gray.width / STRIPS - strip_w / 2)
-        strip = gray.crop((x0, 0, x0 + strip_w, gray.height))
-        runs += _runs(list(strip.resize((1, gray.height)).tobytes()))  # mean per row
+    runs, _ = _profile(gray)
     return float(statistics.median(runs)) if runs else None
 
 
@@ -106,14 +128,17 @@ def normalise_scale(gray: Image.Image) -> tuple[Image.Image, float]:
     """Rescale so text lines are about TARGET_LINE_PX high. Returns (image, factor)."""
     from PIL import Image as PILImage
 
-    h = line_height(gray)
-    if not h:
+    runs, rules = _profile(gray)
+    if not runs:
         return gray, 1.0
-    factor = max(MIN_SCALE, min(MAX_SCALE, TARGET_LINE_PX / h))
+    h = float(statistics.median(runs))
+    ruled = sum(n >= RULED_MIN_LINES for n in rules) >= 2
+    cap = RULED_MAX_SCALE if ruled else MAX_SCALE
+    factor = max(MIN_SCALE, min(cap, TARGET_LINE_PX / h))
     if 0.85 <= factor <= 1.15:
         return gray, 1.0
     size = (max(1, round(gray.width * factor)), max(1, round(gray.height * factor)))
     return gray.resize(size, PILImage.Resampling.LANCZOS), factor
 
 
-__all__ = ["flatten_background", "line_height", "normalise_scale", "to_gray"]
+__all__ = ["flatten_background", "is_ruled", "line_height", "normalise_scale", "to_gray"]
