@@ -106,3 +106,9 @@ uv sync --extra browser && uv run playwright install chromium   # optional rung 
 ## License
 
 Apache-2.0
+
+## Contributing and security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md), [docs/architecture.md](docs/architecture.md),
+[SECURITY.md](SECURITY.md) and the [CHANGELOG](CHANGELOG.md).
+

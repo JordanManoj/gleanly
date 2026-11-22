@@ -23,9 +23,9 @@ Status: `todo` / `doing` / `done`. Each item says how we will know it is fixed.
 | --- | --- | --- | --- | --- |
 | A1 | Nobody can install it: private repo, not on PyPI, version 0.1.0.dev0 | Public repo + PyPI trusted publishing + `v0.1.0a1` (maintainer does the account steps) | `pip install gleanly` works for a stranger | todo |
 | A2 | No users, no feedback | Alpha announcement, issue templates, a short "try it" guide; ask 5-10 people to try it | 5+ outside users or issues | todo |
-| A3 | No promise the API stays stable | Versioning policy (SemVer, deprecation warnings), CHANGELOG | CHANGELOG and policy in the repo | todo |
-| A4 | One maintainer (bus factor 1) | CONTRIBUTING guide, architecture doc, good-first-issues | A contributor can land a PR from the docs alone | todo |
-| A5 | No security review | Dependency audit in CI (pip-audit), SECURITY.md, fuzz the HTML/PDF parsers with bad input | CI audit green, SECURITY.md exists | todo |
+| A3 | No promise the API stays stable | Versioning policy (SemVer, deprecation warnings), CHANGELOG | CHANGELOG and policy in the repo | done (2026-11-22: CHANGELOG.md, docs/versioning.md) |
+| A4 | One maintainer (bus factor 1) | CONTRIBUTING guide, architecture doc, good-first-issues | A contributor can land a PR from the docs alone | doing (2026-11-22: CONTRIBUTING.md, docs/architecture.md; good-first-issues after release) |
+| A5 | No security review | Dependency audit in CI (pip-audit), SECURITY.md, fuzz the HTML/PDF parsers with bad input | CI audit green, SECURITY.md exists | doing (2026-11-22: SECURITY.md, pip-audit in CI; parser fuzzing to do) |
 
 ### Scale and robustness (large workloads)
 
