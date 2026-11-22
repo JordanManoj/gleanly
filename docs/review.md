@@ -12,6 +12,7 @@ an expert's scrutiny.
 | Date | User (large work) | AI engineer (technology) | CEO (adopt today) | Overall |
 | --- | --- | --- | --- | --- |
 | 2026-11-22 | 25 | 55-60 | 30 | ~40 |
+| 2026-11-22 (evening) | 25 | 62 | 35 | ~43 |
 
 ## Weaknesses and the work that fixes them
 
@@ -64,3 +65,8 @@ Status: `todo` / `doing` / `done`. Each item says how we will know it is fixed.
   PDF text-layer check, compliance evidence, provenance). Biggest gap: not installable by
   anyone. Priority: finish search agreement, then release an alpha (A1), then real-world
   and competitor benchmarks (Q2, Q3).
+- **2026-11-22 (evening):** done T2, A3, A5 (audit), Q5, Q7 v0; A4 docs. Engineer score up
+  (OCR leads both rivals on held-out standard and hard suites; search agreement exists;
+  adopter docs). User score unchanged: still not installable (A1). CEO score up a little
+  (security policy, versioning, contributor docs). Next priority: A1 release, then Q6.
+
