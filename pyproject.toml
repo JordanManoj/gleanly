@@ -10,10 +10,10 @@ readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
-authors = [{ name = "gleanly contributors" }]
+authors = [{ name = "Jordan Manoj" }]
 keywords = ["scraping", "markdown", "rag", "llm", "ocr", "search", "provenance", "compliance"]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
@@ -49,7 +49,10 @@ gleanly = "gleanly.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/JordanManoj/gleanly"
+Source = "https://github.com/JordanManoj/gleanly"
 Issues = "https://github.com/JordanManoj/gleanly/issues"
+Changelog = "https://github.com/JordanManoj/gleanly/blob/main/CHANGELOG.md"
+Benchmarks = "https://github.com/JordanManoj/gleanly/blob/main/bench/README.md"
 
 [dependency-groups]
 dev = [
@@ -72,6 +75,22 @@ path = "src/gleanly/__about__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/gleanly"]
+
+# Source distribution: an allow-list, so nothing else in the working folder can be shipped.
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/gleanly",
+    "tests",
+    "bench/*.py",
+    "bench/README.md",
+    "docs",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "pyproject.toml",
+]
 
 [tool.ruff]
 line-length = 100

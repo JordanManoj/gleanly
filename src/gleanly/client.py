@@ -59,6 +59,25 @@ _IMAGE_SUFFIXES = {
     ".gif": "image/gif",
     ".webp": "image/webp",
 }
+# File types load() reads; a missing "name.<ext>" is reported as a missing file.
+_FILE_SUFFIXES = {
+    ".html",
+    ".htm",
+    ".xhtml",
+    ".pdf",
+    ".txt",
+    ".md",
+    ".markdown",
+    ".text",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".tif",
+    ".tiff",
+    ".bmp",
+    ".gif",
+    ".webp",
+}
 _BARE_DOMAIN = re.compile(r"^[\w-]+(\.[\w-]+)+(/.*)?$")
 
 
@@ -169,6 +188,9 @@ class Client:
         path = Path(src).expanduser()
         if path.exists():
             return self._load_file(path, src)
+        if path.suffix.lower() in _FILE_SUFFIXES and "/" not in src.split("?")[0].rstrip("/"):
+            # "report.pdf" or "scan.png" that does not exist: a missing file, not a domain.
+            raise UnsupportedSourceError(f"File not found: {src!r}")
         if _BARE_DOMAIN.match(src):
             return await self._load_url("https://" + src, src)
         raise UnsupportedSourceError(f"Not a URL or an existing file: {source!r}")

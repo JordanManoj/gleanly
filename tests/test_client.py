@@ -333,3 +333,9 @@ async def test_ai_txt_html_not_found_page_is_ignored(
     doc = await client.aload(PAGE)
     assert doc.compliance.ai_txt_allowed is None
     assert doc.compliance.ai_use != "disallowed"
+
+
+@pytest.mark.parametrize("name", ["report.pdf", "missing.html", "scan.PNG", "notes.md"])
+def test_missing_file_is_reported_not_fetched_as_a_domain(name: str) -> None:
+    with pytest.raises(UnsupportedSourceError, match="File not found"):
+        load(name)

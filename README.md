@@ -4,6 +4,15 @@
 Markdown with a **trust score**, **compliance metadata** ("can I use this for AI
 training?") and **provenance** for every block. One `pip install`, one process, no Docker.
 
+```bash
+pip install --pre gleanly            # alpha: --pre is needed until 1.0
+pip install --pre "gleanly[pdf,ocr]" # + PDFs and OCR (OCR also needs Tesseract installed)
+```
+
+> **Alpha:** the API may still change between 0.x releases (see the
+> [versioning policy](https://github.com/JordanManoj/gleanly/blob/main/docs/versioning.md)).
+> Feedback and bug reports are very welcome.
+
 ```python
 from gleanly import load
 
@@ -48,7 +57,7 @@ What gleanly adds on top of plain PDF text extraction and Tesseract:
   OCR layer) is replaced and the page is named in a warning.
 - OCR clean-up tuned on a benchmark: 0.77% characters wrong on held-out pages against
   16.1% for plain Tesseract, mostly by fixing shadows, faint print and phone photos
-  ([bench/README.md](bench/README.md)).
+  ([bench/README.md](https://github.com/JordanManoj/gleanly/blob/main/bench/README.md)).
 
 ## Search
 
@@ -79,7 +88,7 @@ the same sentence with a different number) and reports candidates to check, not 
 ## Status
 
 Phases 1 (web pages) and 2 (PDFs and OCR) are done; Phase 3 (search) is in progress. See
-[docs/status.md](docs/status.md).
+[docs/status.md](https://github.com/JordanManoj/gleanly/blob/main/docs/status.md).
 
 | Capability | Status |
 | --- | --- |
@@ -114,6 +123,6 @@ Apache-2.0
 
 ## Contributing and security
 
-See [CONTRIBUTING.md](CONTRIBUTING.md), [docs/architecture.md](docs/architecture.md),
-[SECURITY.md](SECURITY.md) and the [CHANGELOG](CHANGELOG.md).
+See [CONTRIBUTING.md](https://github.com/JordanManoj/gleanly/blob/main/CONTRIBUTING.md), [docs/architecture.md](https://github.com/JordanManoj/gleanly/blob/main/docs/architecture.md),
+[SECURITY.md](https://github.com/JordanManoj/gleanly/blob/main/SECURITY.md) and the [CHANGELOG](https://github.com/JordanManoj/gleanly/blob/main/CHANGELOG.md).
 
