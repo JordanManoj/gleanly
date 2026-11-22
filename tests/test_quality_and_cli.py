@@ -86,3 +86,15 @@ def test_cli_no_ocr_reports_scanned_pdf_pages(
     assert main(["load", str(pdf), "--no-ocr", "-f", "json"]) == 0
     out = capsys.readouterr().out
     assert "OCR was not available: ocr='never'" in out
+
+
+def test_python_dash_m_runs_the_cli() -> None:
+    import subprocess
+    import sys
+
+    from gleanly import __version__
+
+    out = subprocess.run(
+        [sys.executable, "-m", "gleanly", "--version"], capture_output=True, text=True, check=True
+    )
+    assert __version__ in out.stdout

@@ -6,6 +6,11 @@ All notable changes to gleanly are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `python -m gleanly`: runs the CLI even when pip's Scripts folder is not on PATH
+  (common on Windows, where `gleanly` is then "not recognized").
+
 ## [0.1.0a2] - 2026-11-22
 
 ### Fixed

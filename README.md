@@ -26,7 +26,8 @@ print(doc.fetch_trace.steps)  # every fetch-ladder step that was tried, and why
 
 Async: `doc = await aload(url)`. Batch with shared rate limits: `async with Client() as c: ...`
 
-CLI:
+CLI (if `gleanly` is "not recognized", pip's Scripts folder is not on your PATH: use
+`python -m gleanly ...` instead, it works everywhere):
 
 ```bash
 gleanly load https://example.com/article -o article.md
