@@ -414,5 +414,5 @@ The clean-up that cut Tesseract's errors by 25x makes this engine worse (it was 
 Tesseract's binarisation), and the engine as packaged stays far behind gleanly's current
 pipeline (0.61% held-out). Its errors sit in long lines and wide fonts, where its text
 detector drops words, not in character recognition. So Tesseract stays the default; the
-no-Tesseract engine (its own project, `letterly`) must first fix detection and then match
+no-Tesseract engine (its own project, `glyphly`) must first fix detection and then match
 the current pipeline on held-out before it replaces anything.
