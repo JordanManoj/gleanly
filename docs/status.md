@@ -56,5 +56,5 @@ broken PDFs exists to benchmark the text-layer check.
 
 ## Later phases
 
-See the roadmap in docs/roadmap.md: archives, crawling, learned routing, server mode and
+See the roadmap in [roadmap.md](roadmap.md): archives, crawling, learned routing, server mode and
 trust-score calibration (4).
