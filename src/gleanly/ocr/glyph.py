@@ -11,6 +11,7 @@ standard suite under 0.05% (gleanly + Tesseract 0.6%), hard suite 0.1% (0.0%).
 
 from __future__ import annotations
 
+import importlib
 import statistics
 from typing import TYPE_CHECKING, Any
 
@@ -25,8 +26,9 @@ SAME_SIZE = 0.2  # line heights within 20% of the page's typical one are body te
 
 
 def available() -> bool:
+    """True when the optional glyphly package can be imported (it is not a dependency)."""
     try:
-        import glyphly  # noqa: F401
+        importlib.import_module("glyphly")
     except ImportError:
         return False
     return True
@@ -35,8 +37,7 @@ def available() -> bool:
 def _get_reader() -> Any:
     global _reader
     if _reader is None:
-        import glyphly
-
+        glyphly = importlib.import_module("glyphly")
         _reader = glyphly.Reader()  # loads the models once (downloads them on first use)
     return _reader
 
