@@ -18,7 +18,6 @@ See bench/README.md for how well it predicts accuracy.
 
 from __future__ import annotations
 
-import re
 from collections import Counter
 from dataclasses import dataclass, field
 
@@ -27,9 +26,8 @@ from lxml.html import HtmlElement
 from gleanly.clean.blocks import prose_text, reference_text
 from gleanly.clean.html import Extraction
 from gleanly.clean.html import markdown_to_plain as _plain
+from gleanly.clean.text import tokens
 from gleanly.models import BlockType
-
-_TOKEN = re.compile(r"\w+", re.UNICODE)
 
 # Below this many words the second opinion is too thin to judge (e.g. JS-rendered pages).
 MIN_REFERENCE_WORDS = 50
@@ -52,7 +50,7 @@ class CrossCheck:
 
 
 def _tokens(text: str) -> list[str]:
-    return [t.lower() for t in _TOKEN.findall(text)]
+    return tokens(text)
 
 
 def cross_check(extraction: Extraction, root: HtmlElement | None) -> CrossCheck:

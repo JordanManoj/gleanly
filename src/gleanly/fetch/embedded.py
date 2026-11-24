@@ -21,6 +21,7 @@ from lxml.html import HtmlElement
 
 from gleanly.clean.html import Extraction, RawBlock, extract_fragment, markdown_to_plain
 from gleanly.clean.metadata import iter_json_ld, json_ld_objects
+from gleanly.clean.text import count_words
 from gleanly.models import BlockType
 
 _HTMLISH = re.compile(r"<(p|div|h[1-6]|ul|ol|br|span|a|strong|em)[\s>/]", re.I)
@@ -58,9 +59,9 @@ def _walk_strings(data: Any, path: str = "$") -> Iterator[tuple[str, str]]:
 
 
 def _looks_like_prose(s: str) -> bool:
-    if len(s.split()) < MIN_WORDS or s.lstrip().startswith(("http://", "https://", "{", "[")):
+    if count_words(s) < MIN_WORDS or s.lstrip().startswith(("http://", "https://", "{", "[")):
         return False
-    return ". " in s or "</p>" in s
+    return ". " in s or "\u3002" in s or "</p>" in s
 
 
 def _from_json_ld(root: HtmlElement, base_url: str | None) -> list[RawBlock]:
@@ -68,7 +69,7 @@ def _from_json_ld(root: HtmlElement, base_url: str | None) -> list[RawBlock]:
     for script_path, data in iter_json_ld(root):
         for i, obj in enumerate(json_ld_objects(data)):
             body = obj.get("articleBody") or obj.get("text")
-            if not isinstance(body, str) or len(body.split()) < MIN_WORDS:
+            if not isinstance(body, str) or count_words(body) < MIN_WORDS:
                 continue
             key = "articleBody" if "articleBody" in obj else "text"
             headline = obj.get("headline") or obj.get("name")
@@ -105,7 +106,7 @@ def _from_state_scripts(root: HtmlElement, base_url: str | None) -> list[RawBloc
     blocks: list[RawBlock] = []
     seen: set[str] = set()
     visible = visible_text(root)
-    check_visible = len(visible.split()) >= VISIBLE_MIN_WORDS
+    check_visible = count_words(visible) >= VISIBLE_MIN_WORDS
     kept_text: set[str] = set()
     for script in root.iter("script"):
         sid = script.get("id") or ""

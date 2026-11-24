@@ -22,6 +22,22 @@ All notable changes to gleanly are listed here. The format follows
 
 ### Changed
 
+- Any language: words are counted by characters in scripts without spaces (Chinese,
+  Japanese; Thai, Lao, Khmer and Burmese at about four characters per word), the extraction
+  cross-check compares those scripts character by character, Indic vowel signs stay part of
+  their word, and sentence ends include the Devanagari danda, Arabic, Armenian, Ethiopic,
+  Burmese and Khmer stops and full-width CJK stops (Thai and Lao need none). Real Wikipedia
+  articles: a Chinese page that came back as CSS with 11 "words" is now extracted cleanly;
+  extraction confidence Japanese 0.07 -> 0.93, Hindi 0.19 -> 0.90, Thai 0.48 -> 0.84;
+  English benchmark unchanged (0.900 -> 0.901).
+
+### Fixed
+
+- The block classifier took the text of `<style>` and `<script>` nested inside inline
+  elements (Wikipedia reference lists), so CSS could appear in the Markdown.
+
+### Changed (continued)
+
 - Repeated paragraphs and lists (same text, case and spacing ignored) are kept once.
 - Text from framework data (`__NEXT_DATA__` and similar) is kept only if the page also
   shows it, unless the page is rendered by JavaScript; when the visible page gives at

@@ -53,6 +53,7 @@ Status: `todo` / `doing` / `done`. Each item says how we will know it is fixed.
 | Q9 | Shop pages: facts missing, text repeated (Nike: no price, 35% repeated paragraphs) | schema.org product facts table + `metadata.product`; repeated paragraphs kept once; hidden framework text only when visible; `bench/shop.py` | All facts found on the shop set | done v0 (2026-11-22: 2/8 -> 8/8 facts on 2 shops; more shops needed: 4 of 8 tried refused an honest client) |
 | Q10 | Error and maintenance pages served as "200 OK" look like content (Patagonia: "We're working on it", score 0.69) | Detect soft errors and bot walls; report them in FetchTrace and zero the score | Soft-error pages flagged on a test set | todo |
 | Q11 | Customer reviews taken as the main text (IKEA); reviewer names glued to text | Reviews as their own role (like comments), spacing between inline blocks | Reviews separated on the shop set | todo |
+| Q12 | Pages without spaces between words (Chinese, Japanese, Thai) were mis-measured: a Chinese article came back as CSS, Japanese confidence 0.07 | Language-aware word counts, tokens and sentence ends | Real articles in 10 languages extract with confidence >= 0.6 | done v0 (2026-11-24: zh 0.80, ja 0.93, hi 0.90, th 0.84, ar 0.72; English benchmark unchanged) |
 
 ### Trust, compliance and evidence
 
@@ -79,3 +80,7 @@ Status: `todo` / `doing` / `done`. Each item says how we will know it is fixed.
   fixed. First real-user test (a Nike product page) showed shop pages are weak: added Q8
   (no-Tesseract OCR, user decision), Q9 (done v0), Q10, Q11. The trust score now cannot
   contradict its own warnings. User score up (installable), still limited by docs (S5).
+- **2026-11-24:** languages. glyphly reads 20 languages in 11 scripts (mean CER 1.4%); gleanly
+  picks glyphly automatically when installed (G12 wiring done) and now measures text
+  correctly in languages without spaces (Q12). Remaining: Hebrew and Bengali OCR, real
+  documents per language, PDF plausibility check is still English-only.

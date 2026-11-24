@@ -15,6 +15,7 @@ from lxml.html import HtmlElement
 
 from gleanly.clean.html import Extraction, RawBlock, markdown_to_plain
 from gleanly.clean.product import find_product, product_blocks
+from gleanly.clean.text import count_words
 from gleanly.models import BlockType, ProductInfo
 
 _DEDUPE_TYPES = {BlockType.PARAGRAPH, BlockType.LIST}
@@ -27,7 +28,7 @@ def drop_repeats(blocks: list[RawBlock]) -> list[RawBlock]:
     for block in blocks:
         if block.type in _DEDUPE_TYPES and block.role == "main":
             key = " ".join(markdown_to_plain(block.text).split()).casefold()
-            if len(key.split()) >= MIN_DEDUPE_WORDS:
+            if count_words(key) >= MIN_DEDUPE_WORDS:
                 if key in seen:
                     continue
                 seen.add(key)
@@ -37,7 +38,7 @@ def drop_repeats(blocks: list[RawBlock]) -> list[RawBlock]:
 
 def _contains(blocks: list[RawBlock], text: str) -> bool:
     """True if the start of ``text`` already appears in the blocks (case and spacing ignored)."""
-    probe = " ".join(text.split()[:12]).casefold()
+    probe = " ".join(text.split())[:80].casefold()
     plain = " ".join(" ".join(markdown_to_plain(b.text).split()) for b in blocks).casefold()
     return probe in plain
 

@@ -15,6 +15,7 @@ from lxml import etree  # pyright: ignore[reportAttributeAccessIssue]
 from lxml import html as lxml_html
 from lxml.html import HtmlElement
 
+from gleanly.clean.text import count_words
 from gleanly.models import BlockType
 
 _WS = re.compile(r"\s+")
@@ -31,6 +32,8 @@ BLOCK_TAGS = {
     "details", "summary", "address", "center", "fieldset", "li", "dt", "dd",
     "tr", "td", "th", "tbody", "thead", "tfoot", "caption", "body", "html",
 } | HEADINGS  # fmt: skip
+# A full stop that ends a sentence, in Latin and CJK punctuation.
+_SENTENCE_STOP = re.compile(r"\.( |$)|[\u3002\uff01\uff1f]")
 SKIP_TAGS = {
     "script", "style", "noscript", "template", "svg", "nav", "aside", "iframe",
     "button", "select", "input", "textarea", "canvas", "dialog", "object", "embed",
@@ -103,7 +106,7 @@ class Extraction:
     def refresh(self) -> None:
         plain = " ".join(markdown_to_plain(b.text) for b in self.blocks)
         self.content_chars = len(plain)
-        self.word_count = len(plain.split())
+        self.word_count = count_words(plain)
 
 
 def markdown_to_plain(md: str) -> str:
@@ -199,7 +202,7 @@ class HtmlExtractor:
             if (
                 b.type == BlockType.PARAGRAPH
                 and LONE_LINK.fullmatch(text)
-                and len(markdown_to_plain(text).split()) <= LONE_LINK_WORDS
+                and count_words(markdown_to_plain(text)) <= LONE_LINK_WORDS
             ):
                 del self.blocks[idx]
 
@@ -439,7 +442,7 @@ class HtmlExtractor:
                 text = _norm(sib.text_content()).strip()
                 density = self._link_density(sib)
                 if (len(text) >= 80 and density < 0.25) or (
-                    0 < len(text) < 80 and density == 0 and re.search(r"\.( |$)", text)
+                    0 < len(text) < 80 and density == 0 and _SENTENCE_STOP.search(text)
                 ):
                     keep.add(sib)
         keep |= self._lookalikes(top)

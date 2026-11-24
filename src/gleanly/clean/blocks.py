@@ -29,9 +29,20 @@ from gleanly.clean.html import (
     _is_element,
     _norm,
 )
+from gleanly.clean.text import count_words
 from gleanly.models import BlockType
 
-_SENTENCE_END = re.compile(r"[.!?。！？]['\")\]”’]?(\s|$)")  # noqa: RUF001 (CJK stops)
+# Sentence ends: Latin and CJK stops, Devanagari danda, Arabic and Urdu question/full stop,
+# Armenian, Ethiopic, Burmese and Khmer stops. Thai and Lao write no sentence punctuation,
+# so their prose is judged by length and links alone (see _needs_stop).
+_SENTENCE_END = re.compile(
+    # spaced scripts: a stop followed by a space or the end
+    "[.!?\u0964\u0965\u061f\u06d4\u0589\u1362\u104b\u17d4]"
+    "['\")\\]\u201d\u2019]?(\\s|$)"
+    # Chinese and Japanese full-width stops: no space follows them
+    "|[\u3002\uff01\uff1f]"
+)
+_NO_STOP_SCRIPT = re.compile("[\u0e00-\u0eff]")  # Thai, Lao
 
 # Block classes. Tuned on dev splits only; results are flat across nearby values.
 BAD_LINK_DENSITY = 0.4
@@ -54,7 +65,7 @@ class Segment:
 
     @property
     def words(self) -> int:
-        return len(self.text.split())
+        return count_words(self.text)
 
 
 def _page_root(root: HtmlElement) -> HtmlElement:
@@ -63,6 +74,20 @@ def _page_root(root: HtmlElement) -> HtmlElement:
     if body is not None and len(body.text_content().strip()) > 50:
         return body
     return root
+
+
+def _text_without(el: HtmlElement, skip: frozenset[str] | set[str]) -> str:
+    """The element's text, leaving out nested elements whose tag is in ``skip``.
+
+    ``text_content()`` would include e.g. a ``<style>`` nested inside a ``<span>`` (as in
+    Wikipedia's reference lists), which then shows up as CSS in the extracted text.
+    """
+    out = [el.text or ""]
+    for child in el:
+        if _is_element(child) and child.tag not in skip:
+            out.append(_text_without(child, skip))
+        out.append(child.tail or "")
+    return "".join(out)
 
 
 def segments(root: HtmlElement, skip: frozenset[str] | set[str] = SKIP_TAGS) -> list[Segment]:
@@ -86,7 +111,7 @@ def segments(root: HtmlElement, skip: frozenset[str] | set[str] = SKIP_TAGS) -> 
                     parts, links = [], 0
                     rec(child)
                 else:
-                    parts.append(child.text_content())
+                    parts.append(_text_without(child, skip))
                     anchors = [child] if child.tag == "a" else child.iter("a")
                     links += sum(len(_norm(a.text_content()).strip()) for a in anchors)
             parts.append(child.tail or "")
@@ -94,6 +119,11 @@ def segments(root: HtmlElement, skip: frozenset[str] | set[str] = SKIP_TAGS) -> 
 
     rec(_page_root(root))
     return out
+
+
+def _needs_stop(text: str) -> bool:
+    """False for text mostly in a script that writes no sentence punctuation (Thai, Lao)."""
+    return len(_NO_STOP_SCRIPT.findall(text)) * 2 < len(text)
 
 
 def labels(segs: list[Segment]) -> list[str]:
@@ -106,7 +136,7 @@ def labels(segs: list[Segment]) -> list[str]:
         elif (
             seg.words >= GOOD_WORDS
             and density < GOOD_LINK_DENSITY
-            and _SENTENCE_END.search(seg.text)
+            and (_SENTENCE_END.search(seg.text) or not _needs_stop(seg.text))
         ):
             out.append("good")
         elif seg.words < SHORT_WORDS:
