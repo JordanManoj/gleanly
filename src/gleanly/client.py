@@ -594,6 +594,19 @@ class Client:
         o = self.options
         if o.ocr == "never":
             return None, "ocr='never'"
+        from gleanly.ocr import glyph
+
+        if o.ocr_engine == "glyphly" or (o.ocr_engine == "auto" and glyph.available()):
+            if not glyph.available():
+                return (
+                    None,
+                    "ocr_engine='glyphly' but glyphly is not installed: pip install glyphly",
+                )
+
+            def run_glyphly(image: Any, scale: float) -> Any:
+                return glyph.ocr_image(image, scale=scale)
+
+            return run_glyphly, None
         try:
             import PIL  # noqa: F401
 

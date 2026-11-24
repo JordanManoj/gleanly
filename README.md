@@ -41,6 +41,13 @@ pip install "gleanly[pdf]"   # native PDFs
 pip install "gleanly[ocr]"   # + OCR; also install Tesseract (github.com/tesseract-ocr/tesseract)
 ```
 
+**OCR without Tesseract (coming soon):** when [glyphly](https://github.com/JordanManoj/glyphly)
+is installed, gleanly uses it automatically: no other program to install, and on gleanly's
+held-out OCR benchmark it makes fewer errors (standard pages: under 0.05% of characters
+wrong vs 0.6% with Tesseract). Choose an engine with `ocr_engine="glyphly"` /
+`"tesseract"` or `--ocr-engine`; the default `"auto"` prefers glyphly when installed.
+glyphly is not on PyPI yet.
+
 ```python
 doc = load("report.pdf")  # or "scan.jpg", or a URL serving either
 doc.blocks[3].provenance  # kind="pdf" (text layer) or "image" (OCR), page, bbox

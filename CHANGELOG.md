@@ -16,6 +16,9 @@ All notable changes to gleanly are listed here. The format follows
   The shop's own description is added when the chosen text lacks it.
 - `bench/shop.py`: checks that product facts are found on real shop pages (saved locally,
   never committed).
+- OCR engine choice: `ocr_engine="auto" | "glyphly" | "tesseract"` and `--ocr-engine`.
+  `auto` uses glyphly (no Tesseract needed) when it is installed, else Tesseract; images,
+  scanned PDF pages and the PDF text-layer check all work with either engine.
 
 ### Changed
 

@@ -41,13 +41,19 @@ class LoadOptions(BaseModel):
     )
     ocr: Literal["auto", "never"] = Field(
         default="auto",
-        description="auto: OCR images and PDF pages without a text layer when the [ocr] "
-        "extra and the Tesseract program are installed. never: skip OCR.",
+        description="auto: OCR images and PDF pages without a text layer when an OCR engine "
+        "is available (glyphly, or the [ocr] extra with the Tesseract program). never: skip "
+        "OCR.",
+    )
+    ocr_engine: Literal["auto", "glyphly", "tesseract"] = Field(
+        default="auto",
+        description="auto: glyphly when it is installed (no other program needed), else "
+        "Tesseract. glyphly or tesseract: use only that engine.",
     )
     ocr_lang: str = Field(
         default="eng",
         description="Tesseract language(s), e.g. 'eng' or 'eng+deu'. The language data "
-        "must be installed.",
+        "must be installed. glyphly reads many scripts and ignores this.",
     )
     pdf_check_pages: int = Field(
         default=2,

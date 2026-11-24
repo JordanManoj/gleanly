@@ -188,3 +188,87 @@ def test_bad_hidden_ocr_layer_on_a_scan_is_replaced(tmp_path: Path) -> None:
     assert "approved two new berths" in doc.markdown
     assert "rnet" not in doc.markdown
     assert any("text layer does not match" in w for w in doc.quality.warnings)
+
+
+# ------------------------------------------------------------------ glyphly engine
+def _fake_glyphly(monkeypatch: pytest.MonkeyPatch) -> list[object]:
+    """A stand-in for the glyphly package: two body lines and a taller title line."""
+    import sys
+    import types
+    from dataclasses import dataclass, field
+
+    @dataclass
+    class W:
+        text: str
+        box: tuple[float, float, float, float]
+        confidence: float
+
+    @dataclass
+    class L:
+        words: list[W]
+        box: tuple[float, float, float, float]
+
+    @dataclass
+    class P:
+        lines: list[L]
+        width: int = 400
+        height: int = 300
+        steps: list[str] = field(default_factory=lambda: ["3 text lines found"])
+
+    calls: list[object] = []
+
+    class Reader:
+        def read(self, image: object) -> P:
+            calls.append(image)
+            return P([
+                L([W("Report", (10, 10, 120, 50), 0.99)], (10, 10, 120, 50)),
+                L([W("hello", (10, 70, 60, 90), 0.98), W("world", (70, 70, 130, 90), 0.97)],
+                  (10, 70, 130, 90)),
+                L([W("again", (10, 100, 60, 122), 0.96)], (10, 100, 60, 122)),
+            ])  # fmt: skip
+
+    module = types.ModuleType("glyphly")
+    module.Reader = Reader  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "glyphly", module)
+    from gleanly.ocr import glyph
+
+    monkeypatch.setattr(glyph, "_reader", None)
+    return calls
+
+
+def test_glyphly_adapter_words_lines_and_sizes(monkeypatch: pytest.MonkeyPatch) -> None:
+    _fake_glyphly(monkeypatch)
+    from gleanly.ocr import glyph
+
+    res = glyph.ocr_image(Image.new("RGB", (400, 300), "white"), scale=0.5)
+    assert [w.text for w in res.words] == ["Report", "hello", "world", "again"]
+    assert [w.line_end for w in res.words] == [True, False, True, True]
+    assert res.words[1].x0 == 5.0  # pixels scaled to output units
+    assert res.width == 200.0
+    # body lines (20 and 22 px) share one size; the 40 px title keeps its own
+    assert res.words[1].size == res.words[3].size == 11.0
+    assert res.words[0].size == 20.0
+    assert res.steps[0] == "glyphly"
+    assert res.confidence is not None
+
+
+def test_auto_prefers_glyphly_and_tesseract_stays_available(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    calls = _fake_glyphly(monkeypatch)
+    path = tmp_path / "scan.png"
+    Image.new("RGB", (400, 300), "white").save(path)
+    doc = load(str(path))  # ocr_engine="auto"
+    assert calls  # glyphly did the reading
+    assert "hello world" in doc.markdown
+    assert doc.blocks[0].provenance.kind == "image"
+
+
+def test_glyphly_requested_but_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    import sys
+
+    monkeypatch.setitem(sys.modules, "glyphly", None)  # import fails
+    path = tmp_path / "scan.png"
+    Image.new("RGB", (40, 30), "white").save(path)
+    with pytest.raises(UnsupportedSourceError, match="pip install glyphly"):
+        load(str(path), ocr_engine="glyphly")

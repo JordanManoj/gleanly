@@ -45,6 +45,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Do not OCR images or scanned PDF pages (they are reported instead).",
     )
     p.add_argument(
+        "--ocr-engine",
+        choices=["auto", "glyphly", "tesseract"],
+        default="auto",
+        help="auto: glyphly if installed, else Tesseract (default: auto).",
+    )
+    p.add_argument(
         "--ocr-lang",
         default="eng",
         help="Tesseract language(s), e.g. eng or eng+deu (default: eng).",
@@ -139,6 +145,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             include_comments=args.comments,
             ocr="never" if args.no_ocr else "auto",
             ocr_lang=args.ocr_lang,
+            ocr_engine=args.ocr_engine,
         )
     except AcquisitionError as exc:
         print(f"error: {exc}", file=sys.stderr)
