@@ -6,7 +6,7 @@ training?") and **provenance** for every block. One `pip install`, one process, 
 
 ```bash
 pip install gleanly              # core
-pip install "gleanly[pdf,ocr]"   # + PDFs and OCR (OCR also needs Tesseract installed)
+pip install "gleanly[pdf,ocr]"   # + PDFs and OCR (nothing else to install)
 ```
 
 > **Alpha:** the API may still change between 0.x releases (see the
@@ -38,20 +38,22 @@ gleanly load https://example.com/article -o article.json   # full Document as JS
 
 ```bash
 pip install "gleanly[pdf]"   # native PDFs
-pip install "gleanly[ocr]"   # + OCR; also install Tesseract (github.com/tesseract-ocr/tesseract)
+pip install "gleanly[ocr]"   # + OCR with glyphly: no other program to install
 ```
 
-**OCR without Tesseract (coming soon):** when [glyphly](https://github.com/JordanManoj/glyphly)
-is installed, gleanly uses it automatically: no other program to install, and on gleanly's
+**OCR without Tesseract:** the `[ocr]` extra installs [glyphly](https://pypi.org/project/glyphly/),
+gleanly's own OCR engine: no other program to install (its models, about 31 MB, download
+once on first use; other scripts such as Cyrillic or Arabic fetch theirs when a page needs
+them), and on gleanly's
 held-out OCR benchmark it makes fewer errors (standard pages: under 0.05% of characters
 wrong vs 0.6% with Tesseract). Choose an engine with `ocr_engine="glyphly"` /
 `"tesseract"` or `--ocr-engine`; the default `"auto"` prefers glyphly when installed.
-glyphly is not on PyPI yet.
+Tesseract is still used when you ask for it and have it installed.
 
 ```python
 doc = load("report.pdf")  # or "scan.jpg", or a URL serving either
 doc.blocks[3].provenance  # kind="pdf" (text layer) or "image" (OCR), page, bbox
-doc.quality.ocr_confidence  # Tesseract's word confidence, when OCR was used
+doc.quality.ocr_confidence  # the OCR engine's word confidence, when OCR was used
 doc.quality.extraction_confidence  # PDFs: agreement between the text layer and OCR
 ```
 
@@ -100,13 +102,13 @@ Phases 1 (web pages) and 2 (PDFs and OCR) are done; Phase 3 (search) is in progr
 
 | Capability | Status |
 | --- | --- |
-| Web page → Markdown + metadata | ✅ v0 |
-| Fetch ladder: HTTP → embedded data (JSON-LD, `__NEXT_DATA__`) → Playwright | ✅ v0 |
-| robots.txt (RFC 9309), per-host rate limiting, honest User-Agent | ✅ |
-| Compliance: TDMRep, `ai.txt`, `noai`, AI-crawler opt-outs, license detection, PII flags | ✅ v0 |
-| Quality report + trust score | ✅ v0 (uncalibrated) |
-| Native PDFs (`gleanly[pdf]`): headings, lists, page + bounding-box provenance, running headers removed | ✅ v0 |
-| OCR for images and scanned PDF pages (`gleanly[ocr]` + Tesseract): background flattening, text-size normalisation, layout self-check, OCR confidence in the trust score | ✅ v0 |
+| Web page → Markdown + metadata | Done (v0) |
+| Fetch ladder: HTTP → embedded data (JSON-LD, `__NEXT_DATA__`) → Playwright | Done (v0) |
+| robots.txt (RFC 9309), per-host rate limiting, honest User-Agent | Done |
+| Compliance: TDMRep, `ai.txt`, `noai`, AI-crawler opt-outs, license detection, PII flags | Done (v0) |
+| Quality report + trust score | Done (v0, uncalibrated) |
+| Native PDFs (`gleanly[pdf]`): headings, lists, page + bounding-box provenance, running headers removed | Done (v0) |
+| OCR for images and scanned PDF pages (`gleanly[ocr]`, glyphly; Tesseract optional): columns and tables in reading order, 20 languages, OCR confidence in the trust score | Done (v0) |
 | `search()` with reranking and cross-source agreement | Phase 3 |
 | Archive fallbacks, crawling, server mode, benchmark | Phase 4 |
 

@@ -29,7 +29,7 @@
 | --- | --- | --- |
 | Native PDFs (`[pdf]` extra, pypdfium2) | done | Headings by size/bold, lists, de-hyphenation, page + bbox provenance, PDF metadata |
 | Running headers/footers and page numbers learned across pages | done | |
-| OCR (`[ocr]` extra + Tesseract): images, image URLs, scanned PDF pages | done | `ocr`, `ocr_lang`, `tesseract_cmd` options; `QualityReport.ocr_confidence` |
+| OCR (`[ocr]` extra: glyphly, Tesseract optional): images, image URLs, scanned PDF pages | done | `ocr`, `ocr_engine`, `ocr_lang`, `tesseract_cmd` options; `QualityReport.ocr_confidence` |
 | OCR clean-up tuned on a generated benchmark (`bench/ocr.py`) | done | Held-out CER 16.1% (plain Tesseract) -> 0.77% |
 | PDF text layer vs OCR cross-check | done | Broken layers replaced by OCR; agreement = PDF `extraction_confidence` |
 | Tried and dropped | - | Layout self-check, confidence-guided re-OCR (no gain on the benchmark) |

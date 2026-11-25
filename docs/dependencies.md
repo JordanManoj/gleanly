@@ -27,10 +27,12 @@ typing-extensions (PSF-2.0), **certifi (MPL-2.0)**.
 | `browser` | greenlet (transitive) | MIT / PSF-2.0 |
 | `pdf`, `ocr` | [pypdfium2](https://github.com/pypdfium2-team/pypdfium2) | BSD-3-Clause / Apache-2.0 (bundles PDFium: BSD-3-Clause) |
 | `ocr` | [Pillow](https://github.com/python-pillow/Pillow) | MIT-CMU |
+| `ocr` | [glyphly](https://github.com/JordanManoj/glyphly) | Apache-2.0 (models: PaddleOCR, Apache-2.0) |
+| `ocr` | numpy, onnxruntime (via glyphly) | BSD-3-Clause, MIT |
 
-`ocr` also needs the [Tesseract](https://github.com/tesseract-ocr/tesseract) program
-(Apache-2.0), installed separately. gleanly calls it directly (no Python binding), so its
-per-word confidences and boxes come straight from Tesseract's TSV output.
+The [Tesseract](https://github.com/tesseract-ocr/tesseract) program (Apache-2.0) is
+optional: with `ocr_engine="tesseract"` (or when glyphly is missing) gleanly calls it
+directly (no Python binding) and reads per-word confidences and boxes from its TSV output.
 `search` and `llm` extras arrive in later phases.
 
 ## Development only (not shipped)

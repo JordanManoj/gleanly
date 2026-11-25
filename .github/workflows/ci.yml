@@ -49,6 +49,8 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tesseract-ocr
       - run: uv sync --locked --extra pdf --extra ocr
+      - name: Download the glyphly OCR models (tests never download)
+        run: uv run glyphly download --all
       - run: uv run pytest
 
   build:

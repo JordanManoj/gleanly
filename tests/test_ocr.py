@@ -1,7 +1,9 @@
-"""OCR tests. They need Pillow and the Tesseract program, and are skipped without them."""
+"""OCR tests. Real-OCR tests run once per engine that is set up (glyphly, Tesseract)."""
 
 from __future__ import annotations
 
+import functools
+import importlib
 from pathlib import Path
 
 import pytest
@@ -35,13 +37,35 @@ def test_parse_tsv_words_lines_and_scale() -> None:
     assert words[0].size == 20.0  # line height, scaled
 
 
-def _tesseract_or_skip() -> None:
-    from gleanly.ocr.tesseract import find_tesseract
+@functools.cache
+def _missing(engine: str) -> str | None:
+    """Why ``engine`` cannot run here (None when it can). No downloads in tests."""
+    if engine == "tesseract":
+        from gleanly.ocr.tesseract import find_tesseract
 
+        try:
+            find_tesseract()
+        except UnsupportedSourceError:
+            return "Tesseract is not installed"
+        return None
     try:
-        find_tesseract()
-    except UnsupportedSourceError:
-        pytest.skip("Tesseract is not installed")
+        glyphly = importlib.import_module("glyphly")
+    except ImportError:
+        return "glyphly is not installed"
+    try:
+        glyphly.Reader(download=False)
+    except glyphly.ModelError:
+        return "glyphly models not downloaded (run `glyphly download`)"
+    return None
+
+
+@pytest.fixture(params=["glyphly", "tesseract"])
+def engine(request: pytest.FixtureRequest) -> str:
+    """Each real-OCR test runs once per engine that is set up on this machine."""
+    why = _missing(request.param)
+    if why:
+        pytest.skip(why)
+    return request.param
 
 
 def _font(px: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
@@ -72,11 +96,10 @@ def _page_image(shadow: bool = False) -> Image.Image:
     return img
 
 
-def test_load_image_file_reads_text_with_boxes(tmp_path: Path) -> None:
-    _tesseract_or_skip()
+def test_load_image_file_reads_text_with_boxes(tmp_path: Path, engine: str) -> None:
     path = tmp_path / "scan.png"
     _page_image().save(path)
-    doc = load(str(path))
+    doc = load(str(path), ocr_engine=engine)
     assert doc.blocks[0].text == "# Harbour Report"
     assert "approved two new berths for the fishing fleet" in doc.markdown
     assert doc.quality.extraction_method == "ocr"
@@ -89,23 +112,21 @@ def test_load_image_file_reads_text_with_boxes(tmp_path: Path) -> None:
     assert block.provenance.bbox[0] == pytest.approx(80, abs=15)  # pixels of the original
 
 
-def test_shadowed_scan_is_still_read(tmp_path: Path) -> None:
-    _tesseract_or_skip()
+def test_shadowed_scan_is_still_read(tmp_path: Path, engine: str) -> None:
     path = tmp_path / "shadow.jpg"
     _page_image(shadow=True).convert("RGB").save(path, quality=60)
-    doc = load(str(path))
+    doc = load(str(path), ocr_engine=engine)
     assert "fishing fleet" in doc.markdown
 
 
-def test_scanned_pdf_page_is_ocred(tmp_path: Path) -> None:
-    _tesseract_or_skip()
+def test_scanned_pdf_page_is_ocred(tmp_path: Path, engine: str) -> None:
     img = Image.new("RGB", (1275, 1650), "white")  # a Letter page scanned at 150 dpi
     img.paste(_page_image().resize((1200, 525)).convert("RGB"), (40, 60))
     text_page = Page(flow([("Cover page with a real text layer for the report.", 11, False)]))
     scan = Page(image=(img.width, img.height, img.tobytes()))
     path = tmp_path / "mixed.pdf"
     path.write_bytes(build_pdf([text_page, scan]))
-    doc = load(str(path))
+    doc = load(str(path), ocr_engine=engine)
     assert "Cover page with a real text layer" in doc.markdown
     assert "fishing fleet" in doc.markdown
     kinds = {b.provenance.page: b.provenance.kind for b in doc.blocks}
@@ -126,12 +147,11 @@ def test_ocr_never_reports_scanned_pages(tmp_path: Path) -> None:
     assert any("OCR was not available: ocr='never'" in w for w in doc.quality.warnings)
 
 
-def test_corrupt_image_is_a_clear_error(tmp_path: Path) -> None:
-    _tesseract_or_skip()
+def test_corrupt_image_is_a_clear_error(tmp_path: Path, engine: str) -> None:
     path = tmp_path / "broken.png"
     path.write_bytes(b"not an image")
     with pytest.raises(UnsupportedSourceError, match="Could not open the image"):
-        load(str(path))
+        load(str(path), ocr_engine=engine)
 
 
 # ------------------------------------------------- PDF text layer vs OCR cross-check
@@ -147,11 +167,10 @@ REPORT = [
 ]
 
 
-def test_broken_text_layer_is_replaced_by_ocr(tmp_path: Path) -> None:
-    _tesseract_or_skip()
+def test_broken_text_layer_is_replaced_by_ocr(tmp_path: Path, engine: str) -> None:
     path = tmp_path / "broken.pdf"
     path.write_bytes(build_pdf([Page(flow(REPORT))], broken_unicode=True))  # "Uif ibscpvs"
-    doc = load(str(path))
+    doc = load(str(path), ocr_engine=engine)
     assert "harbour board met eleven times" in doc.markdown
     assert "ibscpvs" not in doc.markdown
     assert {b.provenance.kind for b in doc.blocks} == {"image"}
@@ -161,11 +180,10 @@ def test_broken_text_layer_is_replaced_by_ocr(tmp_path: Path) -> None:
     assert "used OCR" in (step.detail or "")
 
 
-def test_good_text_layer_is_confirmed(tmp_path: Path) -> None:
-    _tesseract_or_skip()
+def test_good_text_layer_is_confirmed(tmp_path: Path, engine: str) -> None:
     path = tmp_path / "good.pdf"
     path.write_bytes(build_pdf([Page(flow(REPORT))]))
-    doc = load(str(path))
+    doc = load(str(path), ocr_engine=engine)
     assert {b.provenance.kind for b in doc.blocks} == {"pdf"}  # the layer is kept
     conf = doc.quality.extraction_confidence
     assert conf is not None
@@ -173,8 +191,7 @@ def test_good_text_layer_is_confirmed(tmp_path: Path) -> None:
     assert not any("does not match" in w for w in doc.quality.warnings)
 
 
-def test_bad_hidden_ocr_layer_on_a_scan_is_replaced(tmp_path: Path) -> None:
-    _tesseract_or_skip()
+def test_bad_hidden_ocr_layer_on_a_scan_is_replaced(tmp_path: Path, engine: str) -> None:
     img = Image.new("RGB", (1275, 1650), "white")  # the visible scan
     img.paste(_page_image().resize((1200, 525)).convert("RGB"), (40, 60))
     hidden = [  # an old, poor OCR layer: plausible-looking but wrong words
@@ -184,7 +201,7 @@ def test_bad_hidden_ocr_layer_on_a_scan_is_replaced(tmp_path: Path) -> None:
     ]
     path = tmp_path / "scan_with_bad_ocr.pdf"
     path.write_bytes(build_pdf([Page(hidden, image=(img.width, img.height, img.tobytes()))]))
-    doc = load(str(path))
+    doc = load(str(path), ocr_engine=engine)
     assert "approved two new berths" in doc.markdown
     assert "rnet" not in doc.markdown
     assert any("text layer does not match" in w for w in doc.quality.warnings)
@@ -233,6 +250,7 @@ def _fake_glyphly(monkeypatch: pytest.MonkeyPatch) -> list[object]:
     from gleanly.ocr import glyph
 
     monkeypatch.setattr(glyph, "_reader", None)
+    monkeypatch.setattr(glyph, "available", lambda: True)
     return calls
 
 

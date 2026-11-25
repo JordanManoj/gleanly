@@ -6,6 +6,11 @@ All notable changes to gleanly are listed here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- `gleanly[ocr]` now installs glyphly 0.1, gleanly's own OCR engine: OCR works with
+  `pip install` alone, no Tesseract. Tesseract stays available (`ocr_engine="tesseract"`).
+
 ### Added
 
 - `python -m gleanly`: runs the CLI even when pip's Scripts folder is not on PATH

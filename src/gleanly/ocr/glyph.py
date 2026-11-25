@@ -26,7 +26,7 @@ SAME_SIZE = 0.2  # line heights within 20% of the page's typical one are body te
 
 
 def available() -> bool:
-    """True when the optional glyphly package can be imported (it is not a dependency)."""
+    """True when glyphly can be imported (the ``[ocr]`` extra installs it)."""
     try:
         importlib.import_module("glyphly")
     except ImportError:
