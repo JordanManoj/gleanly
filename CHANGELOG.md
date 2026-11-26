@@ -6,6 +6,12 @@ All notable changes to gleanly are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Low OCR confidence now caps the trust score (at most 2 x confidence - 0.8 below 0.8): a
+  Malayalam newspaper photo read without a Malayalam model scored 0.82, now 0.29. The
+  warning names an unsupported script as a possible cause.
+
 ### Changed
 
 - `gleanly[ocr]` now installs glyphly 0.1, gleanly's own OCR engine: OCR works with

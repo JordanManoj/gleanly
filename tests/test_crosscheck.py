@@ -105,3 +105,16 @@ def test_warning_names_the_weak_side() -> None:
     assert any("may be missing" in w for w in missing.warnings)
     assert any("leaked" in w for w in leaked.warnings)
     assert missing.extraction_coverage == 0.3
+
+
+def test_low_ocr_confidence_caps_the_score() -> None:
+    """Half-misread OCR text (e.g. a script the engine cannot read) must not look usable."""
+    blocks = [RawBlock(BlockType.PARAGRAPH, PROSE, None) for _ in range(8)]
+    ex = Extraction(blocks, "ocr")
+    good = compute_quality(ex, raw_size=20_000, ocr_confidence=0.97)
+    edge = compute_quality(ex, raw_size=20_000, ocr_confidence=0.79)
+    bad = compute_quality(ex, raw_size=20_000, ocr_confidence=0.55)
+    assert good.score > 0.8
+    assert edge.score <= 0.78  # just below the line: capped near it, no cliff
+    assert bad.score <= 0.3 + 1e-9
+    assert any("script the OCR engine cannot read" in w for w in bad.warnings)

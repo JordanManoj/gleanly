@@ -17,8 +17,12 @@ W_LINKS = 0.25
 W_STRUCTURE = 0.20
 # Share of the score given to the extraction cross-check when it is available.
 W_CONFIDENCE = 0.35
-# Below this mean Tesseract word confidence, OCR text gets a warning (set from bench.ocr).
+# Below this mean OCR word confidence, OCR text gets a warning (set from bench.ocr; glyphly's
+# calibration study: pages with over 20% wrong characters all scored below 0.8).
 LOW_OCR_CONFIDENCE = 0.8
+# Below LOW_OCR_CONFIDENCE the score is at most 2 x confidence - 0.8: 0.8 at the line, 0.3 at
+# 0.55 (a Malayalam newspaper photo read without a Malayalam model scored 0.82 before).
+OCR_CAP_SLOPE = 2.0
 # Below LOW_CONFIDENCE the score is at most extraction_confidence + this margin, so a page
 # whose text an independent check could not confirm never looks trustworthy.
 CONFIDENCE_CAP_MARGIN = 0.3
@@ -71,7 +75,8 @@ def compute_quality(
     if ocr_confidence is not None and ocr_confidence < LOW_OCR_CONFIDENCE and words:
         warnings.append(
             f"Low OCR confidence ({ocr_confidence:.2f}): the scan may be blurred, faint or "
-            "skewed; expect misread characters."
+            "skewed, or the text may be in a script the OCR engine cannot read yet; expect "
+            "misread characters."
         )
     if extraction_confidence is not None and extraction_confidence < LOW_CONFIDENCE and words:
         sup = 1.0 if extraction_support is None else extraction_support
@@ -108,6 +113,10 @@ def compute_quality(
     # confirm cannot score high, and "check the result" warnings cost a share of it.
     if extraction_confidence is not None and extraction_confidence < LOW_CONFIDENCE and words:
         score = min(score, extraction_confidence + CONFIDENCE_CAP_MARGIN)
+    if ocr_confidence is not None and ocr_confidence < LOW_OCR_CONFIDENCE and words:
+        score = min(
+            score, OCR_CAP_SLOPE * ocr_confidence - (OCR_CAP_SLOPE - 1) * LOW_OCR_CONFIDENCE
+        )
     if extraction.extractor == "blocks":
         score *= UNSURE_EXTRACTOR_FACTOR
     if boilerplate > 0.85 and words >= 50:
