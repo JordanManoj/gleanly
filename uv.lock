@@ -353,7 +353,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "glyphly", marker = "extra == 'ocr'", specifier = ">=0.1.0a1,<0.2" },
+    { name = "glyphly", marker = "extra == 'ocr'", specifier = ">=0.2.0a2,<0.3" },
     { name = "httpx", specifier = ">=0.27,<1" },
     { name = "lxml", specifier = ">=5.2,<7" },
     { name = "pillow", marker = "extra == 'ocr'", specifier = ">=10.0,<14" },
@@ -382,7 +382,7 @@ dev = [
 
 [[package]]
 name = "glyphly"
-version = "0.1.0a1"
+version = "0.2.0a2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -393,9 +393,9 @@ dependencies = [
     { name = "pillow", version = "12.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "pillow", version = "13.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1c/1c/041712aa10fed68659752ef80e4fb1da96dae458ef552e80c3ee125fa370/glyphly-0.1.0a1.tar.gz", hash = "sha256:2baa8be7eaf215c927fca9a6a3817825b49f3ffe992813c2131a2c4187f90632", size = 43110, upload-time = "2026-11-25T15:08:15.772Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/fd/92/a841e8687100cc27250cd2fedd1f1fee130e4a6c7a3728723b4d44dce8bb/glyphly-0.2.0a2.tar.gz", hash = "sha256:2ee58fef343deb5fc09c364c62a299ab5ae36f469bd7c36302487579be8a92a0", size = 57908, upload-time = "2026-11-27T21:44:14.78Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/25/ec/d762afd67985fd41d124b841e75ea2b17a4ff90cfe5acaa5b094c4355315/glyphly-0.1.0a1-py3-none-any.whl", hash = "sha256:4703082acd443ef52b6d789a315ce0c39381f4b554de75982364c50eeb2cca0d", size = 29154, upload-time = "2026-11-25T15:08:14.773Z" },
+    { url = "https://files.pythonhosted.org/packages/7d/68/563eabfa5bf27ccf45976b1b968d4bb8a6017322eb79f691164a22f3ad04/glyphly-0.2.0a2-py3-none-any.whl", hash = "sha256:fbfacb45543c6882b31cc3e0bb6c5ab1bb7383d635be72077e40bd21e881406f", size = 35639, upload-time = "2026-11-27T21:44:13.511Z" },
 ]
 
 [[package]]

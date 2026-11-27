@@ -50,6 +50,11 @@ wrong vs 0.6% with Tesseract). Choose an engine with `ocr_engine="glyphly"` /
 `"tesseract"` or `--ocr-engine`; the default `"auto"` prefers glyphly when installed.
 Tesseract is still used when you ask for it and have it installed.
 
+Most scripts are detected by themselves (Latin, Cyrillic, Greek, Arabic, Devanagari, Tamil,
+Telugu, Thai, Chinese, Japanese, Korean). For Malayalam, Bengali, Assamese, Kannada,
+Gujarati, Punjabi and Odia, name the language: `load("scan.jpg", ocr_lang="mal")` or
+`gleanly load scan.jpg --ocr-lang mal` (`eng+ben` for mixed pages).
+
 ```python
 doc = load("report.pdf")  # or "scan.jpg", or a URL serving either
 doc.blocks[3].provenance  # kind="pdf" (text layer) or "image" (OCR), page, bbox

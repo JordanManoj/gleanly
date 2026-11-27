@@ -42,7 +42,7 @@ pdf = ["pypdfium2>=4.30,<6"]
 # OCR for images and scanned PDFs with glyphly (pip only, no system program).
 # Tesseract (https://github.com/tesseract-ocr/tesseract) still works when installed:
 # ocr_engine="tesseract".
-ocr = ["glyphly>=0.1.0a1,<0.2", "pypdfium2>=4.30,<6", "pillow>=10.0,<14"]
+ocr = ["glyphly>=0.2.0a2,<0.3", "pypdfium2>=4.30,<6", "pillow>=10.0,<14"]
 # search and llm extras arrive with their phases (see docs/roadmap.md).
 
 [project.scripts]

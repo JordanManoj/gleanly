@@ -21,7 +21,17 @@ from gleanly.pdf.layout import Word
 if TYPE_CHECKING:
     from PIL import Image
 
-_reader: Any = None
+_readers: dict[tuple[str, ...], Any] = {}
+_DOWNLOAD = True  # tests switch this off: models are never fetched during tests
+# Tesseract language codes (what ``ocr_lang`` takes) -> ISO 639-1 codes glyphly takes, for
+# languages glyphly reads with its own script models. Others need no hint.
+_TESSERACT = {
+    "mal": "ml", "ben": "bn", "asm": "as", "kan": "kn", "guj": "gu", "pan": "pa",
+    "ori": "or", "hin": "hi", "mar": "mr", "nep": "ne", "san": "sa", "tam": "ta",
+    "tel": "te", "ara": "ar", "fas": "fa", "urd": "ur", "rus": "ru", "ukr": "uk",
+    "bel": "be", "bul": "bg", "srp": "sr", "mkd": "mk", "ell": "el", "kor": "ko",
+    "tha": "th",
+}  # fmt: skip
 SAME_SIZE = 0.2  # line heights within 20% of the page's typical one are body text
 
 
@@ -34,17 +44,34 @@ def available() -> bool:
     return True
 
 
-def _get_reader() -> Any:
-    global _reader
-    if _reader is None:
+def glyphly_langs(ocr_lang: str) -> tuple[str, ...]:
+    """Language hints for glyphly from ``ocr_lang`` ('eng', 'mal', 'eng+ben', 'ml', ...).
+
+    Only languages glyphly reads with a script model are passed on; glyphly needs to be
+    told about some of them (Malayalam, Bengali, ...), and auto mode stays on for the rest.
+    """
+    out = []
+    for code in ocr_lang.replace(",", "+").split("+"):
+        code = code.strip().lower()
+        iso = _TESSERACT.get(code, code if len(code) == 2 else "")
+        if iso and iso != "en" and iso not in out:
+            out.append(iso)
+    return tuple(out)
+
+
+def _get_reader(langs: tuple[str, ...] = ()) -> Any:
+    if langs not in _readers:
         glyphly = importlib.import_module("glyphly")
-        _reader = glyphly.Reader()  # loads the models once (downloads them on first use)
-    return _reader
+        # loads the models once (downloads them on first use)
+        lang: Any = ["auto", *langs] if langs else "auto"
+        _readers[langs] = glyphly.Reader(lang=lang, download=_DOWNLOAD)
+    return _readers[langs]
 
 
-def ocr_image(image: Image.Image, *, scale: float = 1.0) -> OcrResult:
-    """OCR one page image with glyphly. ``scale`` converts pixels to output units."""
-    page = _get_reader().read(image)
+def ocr_image(image: Image.Image, *, scale: float = 1.0, lang: str = "eng") -> OcrResult:
+    """OCR one page image with glyphly. ``scale`` converts pixels to output units;
+    ``lang`` is gleanly's ``ocr_lang`` (Tesseract-style codes)."""
+    page = _get_reader(glyphly_langs(lang)).read(image)
     words: list[Word] = []
     heights = [line.box[3] - line.box[1] for line in page.lines]
     body = statistics.median(heights) if heights else 0.0

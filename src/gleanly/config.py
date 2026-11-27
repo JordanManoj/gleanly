@@ -52,8 +52,10 @@ class LoadOptions(BaseModel):
     )
     ocr_lang: str = Field(
         default="eng",
-        description="Tesseract language(s), e.g. 'eng' or 'eng+deu'. The language data "
-        "must be installed. glyphly reads many scripts and ignores this.",
+        description="OCR language(s), e.g. 'eng', 'mal' or 'eng+ben' (Tesseract codes; "
+        "two-letter codes such as 'ml' work with glyphly). glyphly detects most scripts by "
+        "itself but must be told about Malayalam, Bengali, Assamese, Kannada, Gujarati, "
+        "Punjabi and Odia. Tesseract needs the language data installed.",
     )
     pdf_check_pages: int = Field(
         default=2,

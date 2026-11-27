@@ -604,7 +604,7 @@ class Client:
                 )
 
             def run_glyphly(image: Any, scale: float) -> Any:
-                return glyph.ocr_image(image, scale=scale)
+                return glyph.ocr_image(image, scale=scale, lang=o.ocr_lang)
 
             return run_glyphly, None
         try:

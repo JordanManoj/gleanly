@@ -53,7 +53,8 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--ocr-lang",
         default="eng",
-        help="Tesseract language(s), e.g. eng or eng+deu (default: eng).",
+        help="OCR language(s), e.g. eng, mal or eng+ben (default: eng). Needed for "
+        "Malayalam, Bengali, Assamese, Kannada, Gujarati, Punjabi and Odia.",
     )
     p.add_argument(
         "--ignore-robots",

@@ -26,7 +26,8 @@ def _glyphly_never_downloads() -> Iterator[None]:
             yield
             return
         try:
-            mp.setattr(glyph, "_reader", glyphly.Reader(download=False))
+            mp.setattr(glyph, "_DOWNLOAD", False)
+            mp.setattr(glyph, "_readers", {(): glyphly.Reader(download=False)})
         except glyphly.ModelError:
             mp.setattr(glyph, "available", lambda: False)
         yield

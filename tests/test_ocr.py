@@ -233,8 +233,12 @@ def _fake_glyphly(monkeypatch: pytest.MonkeyPatch) -> list[object]:
         steps: list[str] = field(default_factory=lambda: ["3 text lines found"])
 
     calls: list[object] = []
+    made: list[dict[str, object]] = []
 
     class Reader:
+        def __init__(self, **kwargs: object) -> None:
+            made.append(kwargs)
+
         def read(self, image: object) -> P:
             calls.append(image)
             return P([
@@ -249,7 +253,7 @@ def _fake_glyphly(monkeypatch: pytest.MonkeyPatch) -> list[object]:
     monkeypatch.setitem(sys.modules, "glyphly", module)
     from gleanly.ocr import glyph
 
-    monkeypatch.setattr(glyph, "_reader", None)
+    monkeypatch.setattr(glyph, "_readers", {})
     monkeypatch.setattr(glyph, "available", lambda: True)
     return calls
 
@@ -290,3 +294,13 @@ def test_glyphly_requested_but_missing(monkeypatch: pytest.MonkeyPatch, tmp_path
     Image.new("RGB", (40, 30), "white").save(path)
     with pytest.raises(UnsupportedSourceError, match="pip install glyphly"):
         load(str(path), ocr_engine="glyphly")
+
+
+def test_ocr_lang_is_passed_to_glyphly() -> None:
+    from gleanly.ocr.glyph import glyphly_langs
+
+    assert glyphly_langs("eng") == ()
+    assert glyphly_langs("mal") == ("ml",)
+    assert glyphly_langs("eng+ben") == ("bn",)
+    assert glyphly_langs("ml,hi") == ("ml", "hi")
+    assert glyphly_langs("deu") == ()  # read by glyphly's default model, no hint needed

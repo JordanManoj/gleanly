@@ -6,6 +6,14 @@ All notable changes to gleanly are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0a3] - 2026-11-27
+
+### Added
+
+- `ocr_lang` / `--ocr-lang` reaches glyphly too: `ocr_lang="mal"` (or `"ml"`, `"eng+ben"`)
+  reads Malayalam, Bengali, Assamese, Kannada, Gujarati, Punjabi and Odia with glyphly's
+  word models; other scripts are still detected automatically.
+
 ### Fixed
 
 - Low OCR confidence now caps the trust score (at most 2 x confidence - 0.8 below 0.8): a
@@ -14,7 +22,7 @@ All notable changes to gleanly are listed here. The format follows
 
 ### Changed
 
-- `gleanly[ocr]` now installs glyphly 0.1, gleanly's own OCR engine: OCR works with
+- `gleanly[ocr]` now installs glyphly 0.2, gleanly's own OCR engine: OCR works with
   `pip install` alone, no Tesseract. Tesseract stays available (`ocr_engine="tesseract"`).
 
 ### Added
